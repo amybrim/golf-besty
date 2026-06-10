@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { Target, Trophy, LogIn, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare } from "lucide-react";
+import { Target, Trophy, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -146,29 +145,6 @@ export default function Showdown() {
   const jamieWins = myPicks?.filter((p: any) => p.isResolved && p.isCorrect).length ?? 0;
   const wallyWins = myPicks?.filter((p: any) => p.isResolved && p.aiIsCorrect).length ?? 0;
   const totalResolved = myPicks?.filter((p: any) => p.isResolved).length ?? 0;
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-sm mx-auto">
-        <div className="w-16 h-16 rounded-full club-header flex items-center justify-center">
-          <Target size={28} className="text-brass" />
-        </div>
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-foreground mb-2">Wally vs Jamie</h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Every week there's a tournament. You call your winner. Wally calls his. At the end — one of you was right. Sign in to start the rivalry.
-          </p>
-        </div>
-        <a
-          href={getLoginUrl()}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg brass-badge font-semibold text-sm hover:opacity-90 transition-opacity"
-        >
-          <LogIn size={16} />
-          Sign in to play
-        </a>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
