@@ -1,15 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import {
   MessageSquare,
   Trophy,
-  Users,
   TrendingUp,
   Target,
   Flag,
-  LogIn,
-  LogOut,
   Menu,
   X,
   Newspaper,
@@ -18,8 +13,6 @@ import {
   Heart,
 } from "lucide-react";
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
@@ -37,11 +30,7 @@ const navItems = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { user, isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => (window.location.href = "/"),
-  });
 
   const Sidebar = () => (
     <nav className="flex flex-col h-full">
@@ -91,36 +80,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Brass divider */}
       <div className="mx-6 brass-divider opacity-30" />
 
-      {/* User section */}
-      <div className="px-4 py-6">
-        {isAuthenticated && user ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 px-2">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-cream text-sm font-serif font-bold">
-                {user.name?.[0]?.toUpperCase() ?? "G"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-cream text-sm font-medium truncate">{user.name ?? "Golfer"}</div>
-                <div className="text-white/40 text-xs">Member</div>
-              </div>
-            </div>
-            <button
-              onClick={() => logoutMutation.mutate()}
-              className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-white/50 hover:text-cream hover:bg-white/5 transition-all text-sm"
-            >
-              <LogOut size={14} />
-              Sign out
-            </button>
-          </div>
-        ) : (
-          <a
-            href={getLoginUrl()}
-            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-brass/20 hover:bg-brass/30 text-brass transition-all text-sm font-medium"
-          >
-            <LogIn size={16} />
-            Sign in to join Wally
-          </a>
-        )}
+      {/* Clubhouse tagline — no login needed */}
+      <div className="px-6 py-5">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-brass animate-pulse" />
+          <span className="text-white/40 text-xs font-mono tracking-wider">Jamie's Clubhouse</span>
+        </div>
       </div>
     </nav>
   );
