@@ -12,6 +12,9 @@ import Odds from "./pages/Odds";
 import Showdown from "./pages/Showdown";
 import MyGame from "./pages/MyGame";
 import Feed from "./pages/Feed";
+import Memory from "./pages/Memory";
+import Trivia from "./pages/Trivia";
+import FamilyDrops from "./pages/FamilyDrops";
 import Layout from "./components/Layout";
 
 function Router() {
@@ -26,6 +29,9 @@ function Router() {
         <Route path="/players" component={Players} />
         <Route path="/mygame" component={MyGame} />
         <Route path="/odds" component={Odds} />
+        <Route path="/memory" component={Memory} />
+        <Route path="/trivia" component={Trivia} />
+        <Route path="/family" component={FamilyDrops} />
         {/* Legacy redirect */}
         <Route path="/picks" component={Showdown} />
         <Route path="/404" component={NotFound} />

@@ -80,3 +80,34 @@ export const rounds = mysqlTable("rounds", {
 
 export type Round = typeof rounds.$inferSelect;
 export type InsertRound = typeof rounds.$inferInsert;
+
+/**
+ * Wally Memory — things Jamie tells Wally to remember:
+ * favorite courses, golf moments, personal notes, bucket list holes.
+ */
+export const wallyMemories = mysqlTable("wally_memories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  category: mysqlEnum("category", ["course", "moment", "player", "note", "bucket_list"]).notNull().default("note"),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WallyMemory = typeof wallyMemories.$inferSelect;
+export type InsertWallyMemory = typeof wallyMemories.$inferInsert;
+
+/**
+ * Family Drops — messages Amy and family leave for Jamie inside Wally.
+ * Jamie sees them when he opens the app. Love letters disguised as a golf app.
+ */
+export const familyDrops = mysqlTable("family_drops", {
+  id: int("id").autoincrement().primaryKey(),
+  fromName: varchar("fromName", { length: 128 }).notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("isRead").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FamilyDrop = typeof familyDrops.$inferSelect;
+export type InsertFamilyDrop = typeof familyDrops.$inferInsert;

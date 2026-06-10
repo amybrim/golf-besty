@@ -94,3 +94,10 @@
 - [x] Voice input: mic button so Jamie taps to speak instead of type
 - [x] Quick reaction buttons in Chat: "Tell me something good", "Who's hot?", "What did I miss?", "Trash talk me", "This week's tournament"
 - [x] Daily morning briefing on Home page — Wally's personal golf note to Jamie each day
+
+## Wally Full Companion Features (Amy's Recommendations)
+- [ ] Wally Memory: Jamie can save personal golf notes, favorite courses, and moments; Wally references them in chat
+- [ ] Golf Trivia mode: tap A/B/C/D questions, Wally reacts to right and wrong answers with personality
+- [ ] Family Drops: Amy and family can leave Wally a message or memory that Jamie sees when he opens the app
+- [ ] TTS read-aloud on Feed page: speaker button on each news story
+- [ ] TTS read-aloud on Tournaments page: Wally narrates the leaderboard

@@ -1,6 +1,6 @@
 import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, picks, chatMessages, rounds, InsertPick, InsertChatMessage, InsertRound } from "../drizzle/schema";
+import { InsertUser, users, picks, chatMessages, rounds, wallyMemories, familyDrops, InsertPick, InsertChatMessage, InsertRound, InsertWallyMemory, InsertFamilyDrop } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -129,4 +129,51 @@ export async function getChatHistory(userId: number, limit = 20) {
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
   return rows.reverse(); // oldest first for display
+}
+
+// ── Wally Memories ────────────────────────────────────────────────────────────
+
+export async function createMemory(memory: InsertWallyMemory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(wallyMemories).values(memory);
+  return (result as any)[0]?.insertId ?? null;
+}
+
+export async function getUserMemories(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(wallyMemories).where(eq(wallyMemories.userId, userId)).orderBy(desc(wallyMemories.createdAt));
+}
+
+export async function deleteMemory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(wallyMemories).where(and(eq(wallyMemories.id, id), eq(wallyMemories.userId, userId)));
+}
+
+// ── Family Drops ─────────────────────────────────────────────────────────────
+
+export async function createFamilyDrop(drop: InsertFamilyDrop) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(familyDrops).values(drop);
+}
+
+export async function getUnreadFamilyDrops() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(familyDrops).where(eq(familyDrops.isRead, false)).orderBy(desc(familyDrops.createdAt));
+}
+
+export async function getAllFamilyDrops() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(familyDrops).orderBy(desc(familyDrops.createdAt));
+}
+
+export async function markFamilyDropRead(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(familyDrops).set({ isRead: true }).where(eq(familyDrops.id, id));
 }

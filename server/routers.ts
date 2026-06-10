@@ -13,6 +13,13 @@ import {
   getChatHistory,
   createRound,
   getUserRounds,
+  createMemory,
+  getUserMemories,
+  deleteMemory,
+  createFamilyDrop,
+  getUnreadFamilyDrops,
+  getAllFamilyDrops,
+  markFamilyDropRead,
 } from "./db";
 import {
   fetchPGASchedule,
@@ -351,6 +358,131 @@ const gameRouter = router({
   }),
 });
 
+// ── Memory router ───────────────────────────────────────────────────────────────────
+
+const memoryRouter = router({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return getUserMemories(ctx.user.id);
+  }),
+
+  add: protectedProcedure
+    .input(
+      z.object({
+        category: z.enum(["course", "moment", "player", "note", "bucket_list"]),
+        title: z.string().min(1).max(256),
+        content: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await createMemory({ userId: ctx.user.id, ...input });
+      return { success: true };
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      await deleteMemory(input.id, ctx.user.id);
+      return { success: true };
+    }),
+});
+
+// ── Family Drops router ────────────────────────────────────────────────────────────
+
+const familyRouter = router({
+  // Public — family members don't need to log in to leave a message for Jamie
+  drop: publicProcedure
+    .input(
+      z.object({
+        fromName: z.string().min(1).max(128),
+        message: z.string().min(1).max(2000),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await createFamilyDrop(input);
+      return { success: true };
+    }),
+
+  // Jamie sees unread drops
+  unread: publicProcedure.query(async () => {
+    return getUnreadFamilyDrops();
+  }),
+
+  all: publicProcedure.query(async () => {
+    return getAllFamilyDrops();
+  }),
+
+  markRead: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await markFamilyDropRead(input.id);
+      return { success: true };
+    }),
+});
+
+// ── Trivia router ────────────────────────────────────────────────────────────────────
+
+const triviaRouter = router({
+  question: publicProcedure.query(async () => {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are Wally, a golf trivia master. Generate one golf trivia question with 4 multiple choice options. Mix difficulty: some easy, some hard. Cover PGA history, LIV, major champions, famous shots, course records, rules, equipment, player facts, and legends. Return ONLY valid JSON with this exact shape: { "question": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answer": "A", "explanation": "..." }`,
+        },
+        { role: "user", content: "Give me a golf trivia question" },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "trivia_question",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              question: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              answer: { type: "string" },
+              explanation: { type: "string" },
+            },
+            required: ["question", "options", "answer", "explanation"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+    const raw = response?.choices?.[0]?.message?.content;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { /* fall through */ }
+    }
+    // Fallback question
+    return {
+      question: "Who holds the record for most major championship wins?",
+      options: ["A. Tiger Woods", "B. Jack Nicklaus", "C. Walter Hagen", "D. Ben Hogan"],
+      answer: "B",
+      explanation: "Jack Nicklaus won 18 major championships, a record that still stands today.",
+    };
+  }),
+
+  react: publicProcedure
+    .input(z.object({ question: z.string(), correct: z.boolean(), answer: z.string() }))
+    .mutation(async ({ input }) => {
+      const response = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: `You are Wally — Jamie's golf best friend. React to his trivia answer in 1-2 sentences. Be warm, funny, and real. If correct: celebrate. If wrong: tease him gently and give a fun fact. Keep it short.`,
+          },
+          {
+            role: "user",
+            content: `Question: "${input.question}" Jamie answered: "${input.answer}" — that was ${input.correct ? "CORRECT" : "WRONG"}.`,
+          },
+        ],
+      });
+      const raw = response?.choices?.[0]?.message?.content;
+      return { reaction: typeof raw === "string" ? raw.trim() : (input.correct ? "Nailed it!" : "Ooh, close one!") };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -364,6 +496,9 @@ export const appRouter = router({
   golf: golfRouter,
   picks: picksRouter,
   game: gameRouter,
+  memory: memoryRouter,
+  family: familyRouter,
+  trivia: triviaRouter,
 });
 
 export type AppRouter = typeof appRouter;

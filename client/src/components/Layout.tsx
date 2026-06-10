@@ -13,6 +13,9 @@ import {
   Menu,
   X,
   Newspaper,
+  Brain,
+  HelpCircle,
+  Heart,
 } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -26,6 +29,9 @@ const navItems = [
   { path: "/feed", label: "The Locker Room", icon: Newspaper },
   { path: "/tournaments", label: "Tournaments", icon: Trophy },
   { path: "/mygame", label: "My Game", icon: Flag },
+  { path: "/trivia", label: "Golf Trivia", icon: HelpCircle },
+  { path: "/memory", label: "Wally's Memory", icon: Brain },
+  { path: "/family", label: "From the Family", icon: Heart },
   { path: "/odds", label: "Market Odds", icon: TrendingUp },
 ];
 
