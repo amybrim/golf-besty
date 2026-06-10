@@ -1,0 +1,175 @@
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl } from "@/const";
+import {
+  MessageSquare,
+  Trophy,
+  Users,
+  TrendingUp,
+  Target,
+  Flag,
+  LogIn,
+  LogOut,
+  Menu,
+  X,
+  Newspaper,
+} from "lucide-react";
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+
+const navItems = [
+  { path: "/", label: "Home", icon: Flag },
+  { path: "/chat", label: "Talk to Wally", icon: MessageSquare },
+  { path: "/showdown", label: "Wally vs Jamie", icon: Target },
+  { path: "/feed", label: "The Locker Room", icon: Newspaper },
+  { path: "/tournaments", label: "Tournaments", icon: Trophy },
+  { path: "/mygame", label: "My Game", icon: Flag },
+  { path: "/odds", label: "Market Odds", icon: TrendingUp },
+];
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => (window.location.href = "/"),
+  });
+
+  const Sidebar = () => (
+    <nav className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="px-6 py-8 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full brass-badge flex items-center justify-center text-lg font-bold font-serif">
+            W
+          </div>
+          <div>
+            <div className="text-cream font-serif font-bold text-xl leading-tight">Wally</div>
+            <div className="text-white/40 text-xs font-mono tracking-widest uppercase">
+              Jamie's Golf Bestie
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav links */}
+      <div className="flex-1 px-3 py-6 space-y-1">
+        {navItems.map(({ path, label, icon: Icon }) => {
+          const active = location === path;
+          return (
+            <Link
+              key={path}
+              href={path}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150 group ${
+                active
+                  ? "bg-white/10 text-cream"
+                  : "text-white/60 hover:bg-white/5 hover:text-cream"
+              }`}
+            >
+              <Icon
+                size={18}
+                className={`transition-colors ${active ? "text-brass" : "text-white/40 group-hover:text-brass"}`}
+              />
+              <span className="text-sm font-medium">{label}</span>
+              {active && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brass" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Brass divider */}
+      <div className="mx-6 brass-divider opacity-30" />
+
+      {/* User section */}
+      <div className="px-4 py-6">
+        {isAuthenticated && user ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-cream text-sm font-serif font-bold">
+                {user.name?.[0]?.toUpperCase() ?? "G"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-cream text-sm font-medium truncate">{user.name ?? "Golfer"}</div>
+                <div className="text-white/40 text-xs">Member</div>
+              </div>
+            </div>
+            <button
+              onClick={() => logoutMutation.mutate()}
+              className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-white/50 hover:text-cream hover:bg-white/5 transition-all text-sm"
+            >
+              <LogOut size={14} />
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <a
+            href={getLoginUrl()}
+            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-brass/20 hover:bg-brass/30 text-brass transition-all text-sm font-medium"
+          >
+            <LogIn size={16} />
+            Sign in to join Wally
+          </a>
+        )}
+      </div>
+    </nav>
+  );
+
+  return (
+    <div className="min-h-screen flex bg-cream">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 club-header flex-shrink-0 fixed inset-y-0 left-0 z-30">
+        <Sidebar />
+      </aside>
+
+      {/* Mobile header */}
+      <header className="lg:hidden fixed top-0 inset-x-0 z-40 club-header flex items-center justify-between px-4 h-14">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full brass-badge flex items-center justify-center text-sm font-bold font-serif">
+            W
+          </div>
+          <span className="text-cream font-serif font-bold text-lg">Wally</span>
+        </div>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-cream/70 hover:text-cream p-1"
+        >
+          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 z-30 bg-black/50"
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="lg:hidden fixed inset-y-0 left-0 z-40 w-64 club-header"
+            >
+              <Sidebar />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main content */}
+      <main className="flex-1 lg:ml-64 pt-14 lg:pt-0 min-h-screen">
+        <div className="p-4 lg:p-8 max-w-6xl mx-auto">{children}</div>
+      </main>
+    </div>
+  );
+}

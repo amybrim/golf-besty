@@ -1,0 +1,1 @@
+ALTER TABLE `rounds` MODIFY COLUMN `playedAt` varchar(10) NOT NULL;
