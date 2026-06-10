@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useGuestId } from "@/hooks/useGuestId";
-import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap } from "lucide-react";
+import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
 
@@ -28,7 +28,7 @@ const QUICK_REACTIONS = [
 ];
 
 // Speak text using browser Web Speech API
-function speakText(text: string, onEnd?: () => void) {
+function speakText(text: string, onEnd?: () => void, voiceName?: string) {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   // Strip markdown for cleaner speech
@@ -41,27 +41,24 @@ function speakText(text: string, onEnd?: () => void) {
     .replace(/\n+/g, ". ")
     .trim();
   const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.rate = 0.88;  // slightly slower — warm, unhurried, like a friend talking
-  utterance.pitch = 0.92; // slightly lower pitch — masculine, calm
+  utterance.rate = 0.88;
+  utterance.pitch = 0.92;
   utterance.volume = 1.0;
 
-  // Pick the best available voice — prefer warm male voices, avoid robotic defaults
   const setVoice = () => {
     const voices = window.speechSynthesis.getVoices();
     if (!voices.length) return;
-    // Priority order: best natural voices first
+    if (voiceName) {
+      // User-selected voice by name
+      const picked = voices.find((v) => v.name === voiceName);
+      if (picked) { utterance.voice = picked; return; }
+    }
+    // Default priority: warm natural male voices
     const priority = [
-      "Daniel",        // macOS/iOS — warm British male, excellent quality
-      "Arthur",        // macOS Ventura+ — natural British male
-      "Gordon",        // macOS — calm male
-      "Fred",          // macOS — deep male
-      "Alex",          // older macOS — natural US male
-      "Google UK English Male", // Chrome — natural British male
-      "Google US English",     // Chrome — natural US
-      "Microsoft Guy",         // Windows — natural male
-      "Microsoft David",       // Windows — natural male
-      "en-US-GuyNeural",       // Edge neural — excellent
-      "en-GB-RyanNeural",      // Edge neural — warm British
+      "Daniel", "Arthur", "Gordon", "Fred", "Alex",
+      "Google UK English Male", "Google US English",
+      "Microsoft Guy", "Microsoft David",
+      "en-US-GuyNeural", "en-GB-RyanNeural",
     ];
     const enVoices = voices.filter((v) => v.lang.startsWith("en"));
     let chosen: SpeechSynthesisVoice | undefined;
@@ -69,14 +66,12 @@ function speakText(text: string, onEnd?: () => void) {
       chosen = enVoices.find((v) => v.name.includes(name));
       if (chosen) break;
     }
-    // Fallback: first English male-sounding voice, or just first English voice
     if (!chosen) {
       chosen = enVoices.find((v) => !v.name.toLowerCase().includes("female") && !v.name.includes("Samantha") && !v.name.includes("Karen") && !v.name.includes("Victoria")) ?? enVoices[0];
     }
     if (chosen) utterance.voice = chosen;
   };
 
-  // Voices may not be loaded yet on first call
   if (window.speechSynthesis.getVoices().length > 0) {
     setVoice();
   } else {
@@ -86,18 +81,18 @@ function speakText(text: string, onEnd?: () => void) {
   window.speechSynthesis.speak(utterance);
 }
 
-function SpeakerButton({ text, autoPlay }: { text: string; autoPlay: boolean }) {
+function SpeakerButton({ text, autoPlay, voiceName }: { text: string; autoPlay: boolean; voiceName?: string }) {
   const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     if (autoPlay && text) {
       setSpeaking(true);
-      speakText(text, () => setSpeaking(false));
+      speakText(text, () => setSpeaking(false), voiceName);
     }
     return () => {
       window.speechSynthesis?.cancel();
     };
-  }, [autoPlay, text]);
+  }, [autoPlay, text, voiceName]);
 
   const toggle = () => {
     if (speaking) {
@@ -105,7 +100,7 @@ function SpeakerButton({ text, autoPlay }: { text: string; autoPlay: boolean }) 
       setSpeaking(false);
     } else {
       setSpeaking(true);
-      speakText(text, () => setSpeaking(false));
+      speakText(text, () => setSpeaking(false), voiceName);
     }
   };
 
@@ -134,8 +129,43 @@ export default function Chat() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [latestAiIndex, setLatestAiIndex] = useState<number | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string | undefined>(undefined);
+  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  // Load available voices
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    const load = () => {
+      const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+      setAvailableVoices(voices);
+    };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  // Human-sounding voice labels for display
+  const voiceOptions = useMemo(() => {
+    if (!availableVoices.length) return [];
+    // Show a curated shortlist of the best voices on this device
+    const preferred = [
+      "Daniel", "Arthur", "Gordon", "Fred", "Alex", "Oliver",
+      "Google UK English Male", "Google US English",
+      "Microsoft Guy", "Microsoft David", "Microsoft Mark",
+      "en-US-GuyNeural", "en-GB-RyanNeural", "en-US-ChristopherNeural",
+    ];
+    const curated = preferred
+      .map((name) => availableVoices.find((v) => v.name.includes(name)))
+      .filter(Boolean) as SpeechSynthesisVoice[];
+    // Add any remaining English voices not already included
+    const rest = availableVoices.filter(
+      (v) => !curated.some((c) => c.name === v.name)
+    );
+    return [...curated, ...rest].slice(0, 8); // max 8 choices
+  }, [availableVoices]);
 
   const { data: history } = trpc.golf.chatHistory.useQuery(
     { guestId },
@@ -237,7 +267,63 @@ export default function Chat() {
           <h1 className="font-serif font-bold text-foreground text-lg">Wally</h1>
           <p className="text-muted-foreground text-xs font-mono">Jamie's Golf Bestie</p>
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
+          {/* Voice picker */}
+          {voiceOptions.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setVoicePickerOpen((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border border-border text-muted-foreground hover:border-brass/30 hover:text-brass transition-all"
+                title="Choose Wally's voice"
+              >
+                <Volume2 size={11} />
+                <span className="hidden sm:inline">{selectedVoice ? voiceOptions.find(v => v.name === selectedVoice)?.name.split(" ")[0] ?? "Voice" : "Voice"}</span>
+                <ChevronDown size={10} />
+              </button>
+              <AnimatePresence>
+                {voicePickerOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    className="absolute right-0 top-full mt-1.5 z-30 bg-card border border-border rounded-xl shadow-xl min-w-[200px] overflow-hidden"
+                  >
+                    <div className="px-3 py-2 border-b border-border">
+                      <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Wally's Voice</p>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedVoice(undefined); setVoicePickerOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
+                        !selectedVoice ? "text-brass font-medium" : "text-foreground"
+                      }`}
+                    >
+                      <span className="font-medium">Auto (Best available)</span>
+                      <span className="block text-xs text-muted-foreground font-mono mt-0.5">Picks the warmest voice on your device</span>
+                    </button>
+                    {voiceOptions.map((v) => (
+                      <button
+                        key={v.name}
+                        onClick={() => {
+                          setSelectedVoice(v.name);
+                          setVoicePickerOpen(false);
+                          // Preview the voice
+                          speakText("Hey Jamie. Wally here.", undefined, v.name);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 border-t border-border/40 ${
+                          selectedVoice === v.name ? "text-brass font-medium bg-brass/5" : "text-foreground"
+                        }`}
+                      >
+                        <span className="font-medium">{v.name.replace(" (Enhanced)", "").replace(" (Premium)", "")}</span>
+                        <span className="block text-xs text-muted-foreground font-mono mt-0.5">
+                          {v.lang} {v.localService ? "· On device" : "· Online"}
+                        </span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
           {/* Auto-play TTS toggle */}
           <button
             onClick={() => setAutoPlay((v) => !v)}
@@ -249,9 +335,9 @@ export default function Chat() {
             }`}
           >
             {autoPlay ? <Volume2 size={12} /> : <VolumeX size={12} />}
-            {autoPlay ? "Reading aloud" : "Read aloud"}
+            <span className="hidden sm:inline">{autoPlay ? "Reading" : "Aloud"}</span>
           </button>
-          <div className="flex items-center gap-1.5 text-xs text-green-light font-mono">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-light font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse" />
             Ready
           </div>
@@ -345,6 +431,7 @@ export default function Chat() {
                   <SpeakerButton
                     text={msg.content}
                     autoPlay={autoPlay && i === latestAiIndex}
+                    voiceName={selectedVoice}
                   />
                 )}
               </div>
