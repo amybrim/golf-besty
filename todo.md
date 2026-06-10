@@ -87,3 +87,10 @@
 - [x] My Game: Wally reacts to Jamie's rounds with real commentary ("That 73 at Pebble? Respect.")
 - [x] Remove all "betting", "wagering", "money" language from entire app
 - [x] App works great on mobile — Jamie uses it on his phone
+
+## Accessibility — Jamie Can't Talk
+- [x] TTS: Wally reads every chat response aloud — speaker button on each message
+- [x] TTS: Auto-play toggle so Wally speaks automatically without tapping
+- [x] Voice input: mic button so Jamie taps to speak instead of type
+- [x] Quick reaction buttons in Chat: "Tell me something good", "Who's hot?", "What did I miss?", "Trash talk me", "This week's tournament"
+- [x] Daily morning briefing on Home page — Wally's personal golf note to Jamie each day

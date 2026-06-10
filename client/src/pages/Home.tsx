@@ -1,7 +1,22 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { MessageSquare, Trophy, Target, ArrowRight, Newspaper, ExternalLink, Flame } from "lucide-react";
+import { MessageSquare, Trophy, Target, ArrowRight, Newspaper, ExternalLink, Flame, Volume2, VolumeX, Coffee } from "lucide-react";
 import { motion } from "framer-motion";
+
+function speakText(text: string, onEnd?: () => void) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const clean = text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/#{1,6}\s/g, "").replace(/\n+/g, ". ").trim();
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.rate = 0.92;
+  utterance.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Daniel") || v.name.includes("Alex") || v.name.includes("Google US English") || v.name.includes("Samantha")));
+  if (preferred) utterance.voice = preferred;
+  if (onEnd) utterance.onend = onEnd;
+  window.speechSynthesis.speak(utterance);
+}
 
 const TAG_COLORS: Record<string, string> = {
   Drama: "bg-red-500/10 text-red-600",
@@ -25,6 +40,8 @@ function timeAgo(dateStr: string): string {
 export default function Home() {
   const { data: tournaments } = trpc.golf.tournaments.useQuery();
   const { data: topStories } = trpc.golf.topStories.useQuery();
+  const { data: briefing, isLoading: briefingLoading } = trpc.golf.morningBriefing.useQuery();
+  const [briefingSpeaking, setBriefingSpeaking] = useState(false);
 
   const activeTournament = tournaments?.find((t) => t.status === "in_progress");
   const nextTournament = tournaments?.find((t) => t.status === "upcoming");
@@ -78,6 +95,53 @@ export default function Home() {
             </Link>
           </div>
         </div>
+      </motion.div>
+
+      {/* Wally's Morning Briefing */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="bg-card border border-border rounded-xl p-6"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Coffee size={15} className="text-brass" />
+            <span className="font-serif font-semibold text-foreground text-sm">Wally's Morning Note</span>
+          </div>
+          {"speechSynthesis" in window && briefing && (
+            <button
+              onClick={() => {
+                if (briefingSpeaking) {
+                  window.speechSynthesis.cancel();
+                  setBriefingSpeaking(false);
+                } else {
+                  setBriefingSpeaking(true);
+                  speakText(briefing, () => setBriefingSpeaking(false));
+                }
+              }}
+              title={briefingSpeaking ? "Stop" : "Read aloud"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border transition-all ${
+                briefingSpeaking
+                  ? "bg-brass/15 border-brass/40 text-brass animate-pulse"
+                  : "border-border text-muted-foreground hover:border-brass/30 hover:text-brass"
+              }`}
+            >
+              {briefingSpeaking ? <VolumeX size={11} /> : <Volume2 size={11} />}
+              {briefingSpeaking ? "Stop" : "Read aloud"}
+            </button>
+          )}
+        </div>
+        <div className="brass-divider mb-4" />
+        {briefingLoading ? (
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-4 bg-muted rounded animate-pulse" style={{width: `${85 - i*10}%`}} />)}
+          </div>
+        ) : briefing ? (
+          <p className="text-foreground/80 text-sm leading-relaxed italic font-serif">{briefing}</p>
+        ) : (
+          <p className="text-muted-foreground text-sm italic">Wally's warming up... check back in a moment.</p>
+        )}
       </motion.div>
 
       {/* This Week in Golf */}

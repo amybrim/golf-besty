@@ -165,6 +165,42 @@ const golfRouter = router({
   chatHistory: protectedProcedure.query(async ({ ctx }) => {
     return getChatHistory(ctx.user.id, 30);
   }),
+
+  morningBriefing: publicProcedure.query(async () => {
+    // Generate a short, personal daily golf note from Wally to Jamie
+    let newsContext = "";
+    try {
+      const topStories = await getTopStories(4);
+      if (topStories.length > 0) {
+        newsContext = "\n\nCurrent golf news:\n" + topStories.map((s, i) => `${i + 1}. ${s.title}`).join("\n");
+      }
+    } catch { /* optional */ }
+
+    let tourContext = "";
+    try {
+      const tournaments = await fetchPGASchedule();
+      const active = tournaments.find((t) => t.status === "in_progress");
+      const next = tournaments.find((t) => t.status === "upcoming");
+      const featured = active ?? next;
+      if (featured) {
+        tourContext = `\n\nThis week: ${featured.name} at ${featured.venue || "TBD"}.`;
+      }
+    } catch { /* optional */ }
+
+    const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are Wally — Jamie's AI golf best friend. Write a short, warm, personal morning note to Jamie for ${today}. It should feel like a text from a buddy — mention what's happening in golf today, a quick take on a player or storyline, and end with something encouraging. 2-4 sentences max. No bullet points. Conversational and real.${newsContext}${tourContext}`,
+        },
+        { role: "user", content: "Morning note please" },
+      ],
+    });
+    const raw = response?.choices?.[0]?.message?.content;
+    return typeof raw === "string" ? raw : "Morning Jamie. Big week in golf — let's talk.";
+  }),
 });
 
 // ── Picks router ─────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Send, MessageSquare, LogIn, Flag } from "lucide-react";
+import { Send, MessageSquare, LogIn, Flag, Volume2, VolumeX, Mic, MicOff, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
 
@@ -19,12 +19,97 @@ const STARTER_PROMPTS = [
   "What's the toughest hole on the PGA Tour right now?",
 ];
 
+const QUICK_REACTIONS = [
+  { label: "Tell me something good", emoji: "⛳" },
+  { label: "Who's hot right now?", emoji: "🔥" },
+  { label: "What did I miss?", emoji: "📰" },
+  { label: "Trash talk me", emoji: "😤" },
+  { label: "This week's tournament", emoji: "🏆" },
+  { label: "LIV drama update", emoji: "🎭" },
+];
+
+// Speak text using browser Web Speech API
+function speakText(text: string, onEnd?: () => void) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  // Strip markdown for cleaner speech
+  const clean = text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/#{1,6}\s/g, "")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/\n+/g, ". ")
+    .trim();
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.rate = 0.95;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+  // Pick a natural-sounding voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(
+    (v) =>
+      v.lang.startsWith("en") &&
+      (v.name.includes("Daniel") ||
+        v.name.includes("Alex") ||
+        v.name.includes("Google US English") ||
+        v.name.includes("Samantha"))
+  );
+  if (preferred) utterance.voice = preferred;
+  if (onEnd) utterance.onend = onEnd;
+  window.speechSynthesis.speak(utterance);
+}
+
+function SpeakerButton({ text, autoPlay }: { text: string; autoPlay: boolean }) {
+  const [speaking, setSpeaking] = useState(false);
+
+  useEffect(() => {
+    if (autoPlay && text) {
+      setSpeaking(true);
+      speakText(text, () => setSpeaking(false));
+    }
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, [autoPlay, text]);
+
+  const toggle = () => {
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+    } else {
+      setSpeaking(true);
+      speakText(text, () => setSpeaking(false));
+    }
+  };
+
+  if (!("speechSynthesis" in window)) return null;
+
+  return (
+    <button
+      onClick={toggle}
+      title={speaking ? "Stop reading" : "Read aloud"}
+      className={`mt-1.5 ml-1 p-1.5 rounded-lg transition-all ${
+        speaking
+          ? "text-brass bg-brass/10 animate-pulse"
+          : "text-muted-foreground hover:text-brass hover:bg-brass/10"
+      }`}
+    >
+      {speaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
+    </button>
+  );
+}
+
 export default function Chat() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [latestAiIndex, setLatestAiIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const { data: history } = trpc.golf.chatHistory.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -32,10 +117,12 @@ export default function Chat() {
 
   const chatMutation = trpc.golf.chat.useMutation({
     onSuccess: (data) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.content },
-      ]);
+      const newIndex = messages.length + 1; // +1 because user msg was added
+      setMessages((prev) => {
+        const updated = [...prev, { role: "assistant" as const, content: data.content }];
+        setLatestAiIndex(updated.length - 1);
+        return updated;
+      });
       setIsLoading(false);
     },
     onError: () => {
@@ -62,17 +149,54 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim() || isLoading) return;
-    const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsLoading(true);
-    chatMutation.mutate({
-      message: text,
-      history: messages.slice(-10),
-    });
+  const sendMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || isLoading) return;
+      const userMsg: Message = { role: "user", content: text };
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setIsLoading(true);
+      setLatestAiIndex(null);
+      chatMutation.mutate({
+        message: text,
+        history: messages.slice(-10),
+      });
+    },
+    [isLoading, messages, chatMutation]
+  );
+
+  // Voice input via Web Speech API
+  const startListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
+
+  const hasSpeechRecognition =
+    typeof window !== "undefined" &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
   if (!isAuthenticated) {
     return (
@@ -108,9 +232,24 @@ export default function Chat() {
           <h1 className="font-serif font-bold text-foreground text-lg">Wally</h1>
           <p className="text-muted-foreground text-xs font-mono">Jamie's Golf Bestie</p>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-green-light font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse" />
-          Ready
+        <div className="ml-auto flex items-center gap-3">
+          {/* Auto-play TTS toggle */}
+          <button
+            onClick={() => setAutoPlay((v) => !v)}
+            title={autoPlay ? "Auto-read on (tap to turn off)" : "Auto-read off (tap to turn on)"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${
+              autoPlay
+                ? "bg-brass/15 border-brass/40 text-brass"
+                : "border-border text-muted-foreground hover:border-brass/30 hover:text-brass"
+            }`}
+          >
+            {autoPlay ? <Volume2 size={12} /> : <VolumeX size={12} />}
+            {autoPlay ? "Reading aloud" : "Read aloud"}
+          </button>
+          <div className="flex items-center gap-1.5 text-xs text-green-light font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse" />
+            Ready
+          </div>
         </div>
       </div>
 
@@ -129,9 +268,31 @@ export default function Chat() {
               <p className="text-muted-foreground/50 text-xs mt-1 font-mono">— Ben Hogan</p>
             </div>
             <div className="brass-divider opacity-30" />
+
+            {/* Quick Reactions */}
+            <div>
+              <p className="text-muted-foreground text-xs font-mono uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Zap size={11} className="text-brass" /> Quick fire
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_REACTIONS.map((r) => (
+                  <button
+                    key={r.label}
+                    onClick={() => sendMessage(r.label)}
+                    className="text-left px-4 py-3 rounded-lg border border-border hover:border-brass/40 hover:bg-muted/50 transition-all text-sm text-foreground/80 hover:text-foreground flex items-center gap-2"
+                  >
+                    <span className="text-base">{r.emoji}</span>
+                    <span>{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="brass-divider opacity-30" />
+
             <div>
               <p className="text-muted-foreground text-xs font-mono uppercase tracking-wider mb-3">
-                Start a conversation
+                Or ask anything
               </p>
               <div className="grid grid-cols-1 gap-2">
                 {STARTER_PROMPTS.map((prompt) => (
@@ -162,15 +323,24 @@ export default function Chat() {
                   <Flag size={12} className="text-brass" />
                 </div>
               )}
-              <div
-                className={`max-w-[80%] px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === "user" ? "chat-user" : "chat-ai"
-                }`}
-              >
-                {msg.role === "assistant" ? (
-                  <Streamdown>{msg.content}</Streamdown>
-                ) : (
-                  msg.content
+              <div className={`flex flex-col max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                <div
+                  className={`px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === "user" ? "chat-user" : "chat-ai"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <Streamdown>{msg.content}</Streamdown>
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+                {/* Speaker button on Wally messages */}
+                {msg.role === "assistant" && (
+                  <SpeakerButton
+                    text={msg.content}
+                    autoPlay={autoPlay && i === latestAiIndex}
+                  />
                 )}
               </div>
             </motion.div>
@@ -204,7 +374,24 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div className="pt-4 border-t border-border mt-4">
+      <div className="pt-4 border-t border-border mt-4 space-y-2">
+        {/* Quick reactions when conversation is active */}
+        {messages.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {QUICK_REACTIONS.map((r) => (
+              <button
+                key={r.label}
+                onClick={() => sendMessage(r.label)}
+                disabled={isLoading}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border hover:border-brass/40 hover:bg-muted/50 text-xs text-muted-foreground hover:text-foreground transition-all disabled:opacity-40"
+              >
+                <span>{r.emoji}</span>
+                <span className="font-mono">{r.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -215,10 +402,30 @@ export default function Chat() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about golf, players, tournaments..."
-            className="flex-1 px-4 py-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-green-deep/30 focus:border-green-deep/40 transition-all"
+            placeholder={isListening ? "Listening..." : "Ask about golf, players, tournaments..."}
+            className={`flex-1 px-4 py-3 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-green-deep/30 focus:border-green-deep/40 transition-all ${
+              isListening ? "border-brass/60 ring-2 ring-brass/20" : "border-border"
+            }`}
             disabled={isLoading}
           />
+
+          {/* Mic button */}
+          {hasSpeechRecognition && (
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              disabled={isLoading}
+              title={isListening ? "Stop listening" : "Speak to Wally"}
+              className={`px-4 py-3 rounded-xl border transition-all disabled:opacity-40 active:scale-95 ${
+                isListening
+                  ? "bg-brass/20 border-brass text-brass animate-pulse"
+                  : "border-border text-muted-foreground hover:border-brass/40 hover:text-brass"
+              }`}
+            >
+              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+          )}
+
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
