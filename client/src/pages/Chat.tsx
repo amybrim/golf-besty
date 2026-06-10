@@ -135,22 +135,29 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Load available voices
+  // Load available voices — retry needed for iOS/Safari
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     const load = () => {
       const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-      setAvailableVoices(voices);
+      if (voices.length > 0) setAvailableVoices(voices);
     };
     load();
     window.speechSynthesis.onvoiceschanged = load;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+    // iOS needs a slight delay before voices are available
+    const t1 = setTimeout(load, 300);
+    const t2 = setTimeout(load, 1000);
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   // Human-sounding voice labels for display
   const voiceOptions = useMemo(() => {
     if (!availableVoices.length) return [];
-    // Show a curated shortlist of the best voices on this device
+    // Preferred warm/natural voices — show all available if fewer than 3 curated found
     const preferred = [
       "Daniel", "Arthur", "Gordon", "Fred", "Alex", "Oliver",
       "Google UK English Male", "Google US English",
@@ -160,11 +167,11 @@ export default function Chat() {
     const curated = preferred
       .map((name) => availableVoices.find((v) => v.name.includes(name)))
       .filter(Boolean) as SpeechSynthesisVoice[];
-    // Add any remaining English voices not already included
     const rest = availableVoices.filter(
       (v) => !curated.some((c) => c.name === v.name)
     );
-    return [...curated, ...rest].slice(0, 8); // max 8 choices
+    // If fewer than 3 curated voices found, show everything so Jamie always has choices
+    return curated.length >= 3 ? [...curated, ...rest] : availableVoices;
   }, [availableVoices]);
 
   const { data: history } = trpc.golf.chatHistory.useQuery(
@@ -268,16 +275,31 @@ export default function Chat() {
           <p className="text-muted-foreground text-xs font-mono">Jamie's Golf Bestie</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {/* Voice picker */}
-          {voiceOptions.length > 0 && (
+          {/* Voice picker — always visible */}
+          {"speechSynthesis" in window && (
             <div className="relative">
               <button
-                onClick={() => setVoicePickerOpen((v) => !v)}
+                onClick={() => {
+                  // Force-load voices on first open (needed on Safari/iOS)
+                  if (availableVoices.length === 0) {
+                    const v = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+                    if (v.length) setAvailableVoices(v);
+                    else window.speechSynthesis.onvoiceschanged = () => {
+                      setAvailableVoices(window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en")));
+                      window.speechSynthesis.onvoiceschanged = null;
+                    };
+                  }
+                  setVoicePickerOpen((prev) => !prev);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border border-border text-muted-foreground hover:border-brass/30 hover:text-brass transition-all"
                 title="Choose Wally's voice"
               >
                 <Volume2 size={11} />
-                <span className="hidden sm:inline">{selectedVoice ? voiceOptions.find(v => v.name === selectedVoice)?.name.split(" ")[0] ?? "Voice" : "Voice"}</span>
+                <span className="hidden sm:inline">
+                  {selectedVoice
+                    ? (voiceOptions.find(v => v.name === selectedVoice)?.name.split(" ")[0] ?? "Voice")
+                    : "Voice"}
+                </span>
                 <ChevronDown size={10} />
               </button>
               <AnimatePresence>
@@ -286,10 +308,11 @@ export default function Chat() {
                     initial={{ opacity: 0, y: -4, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                    className="absolute right-0 top-full mt-1.5 z-30 bg-card border border-border rounded-xl shadow-xl min-w-[200px] overflow-hidden"
+                    className="absolute right-0 top-full mt-1.5 z-30 bg-card border border-border rounded-xl shadow-xl min-w-[220px] max-h-80 overflow-y-auto"
                   >
-                    <div className="px-3 py-2 border-b border-border">
+                    <div className="px-3 py-2 border-b border-border sticky top-0 bg-card">
                       <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Wally's Voice</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Tap any voice to preview it</p>
                     </div>
                     <button
                       onClick={() => { setSelectedVoice(undefined); setVoicePickerOpen(false); }}
@@ -297,28 +320,33 @@ export default function Chat() {
                         !selectedVoice ? "text-brass font-medium" : "text-foreground"
                       }`}
                     >
-                      <span className="font-medium">Auto (Best available)</span>
+                      <span className="font-medium">Auto — Best available</span>
                       <span className="block text-xs text-muted-foreground font-mono mt-0.5">Picks the warmest voice on your device</span>
                     </button>
-                    {voiceOptions.map((v) => (
-                      <button
-                        key={v.name}
-                        onClick={() => {
-                          setSelectedVoice(v.name);
-                          setVoicePickerOpen(false);
-                          // Preview the voice
-                          speakText("Hey Jamie. Wally here.", undefined, v.name);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 border-t border-border/40 ${
-                          selectedVoice === v.name ? "text-brass font-medium bg-brass/5" : "text-foreground"
-                        }`}
-                      >
-                        <span className="font-medium">{v.name.replace(" (Enhanced)", "").replace(" (Premium)", "")}</span>
-                        <span className="block text-xs text-muted-foreground font-mono mt-0.5">
-                          {v.lang} {v.localService ? "· On device" : "· Online"}
-                        </span>
-                      </button>
-                    ))}
+                    {availableVoices.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                        Loading voices...
+                      </div>
+                    ) : (
+                      voiceOptions.map((v) => (
+                        <button
+                          key={v.name}
+                          onClick={() => {
+                            setSelectedVoice(v.name);
+                            setVoicePickerOpen(false);
+                            speakText("Hey Jamie. Wally here.", undefined, v.name);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 border-t border-border/40 ${
+                            selectedVoice === v.name ? "text-brass font-medium bg-brass/5" : "text-foreground"
+                          }`}
+                        >
+                          <span className="font-medium">{v.name.replace(" (Enhanced)", "").replace(" (Premium)", "")}</span>
+                          <span className="block text-xs text-muted-foreground font-mono mt-0.5">
+                            {v.lang}{v.localService ? " · On device" : " · Online"}
+                          </span>
+                        </button>
+                      ))
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
