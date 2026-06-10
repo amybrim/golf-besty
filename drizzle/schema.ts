@@ -29,7 +29,8 @@ export type InsertUser = typeof users.$inferInsert;
  */
 export const picks = mysqlTable("picks", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().default(0),
+  guestId: varchar("guestId", { length: 64 }),
   tournamentId: varchar("tournamentId", { length: 128 }).notNull(),
   tournamentName: varchar("tournamentName", { length: 256 }).notNull(),
   playerName: varchar("playerName", { length: 128 }).notNull(),
@@ -53,7 +54,8 @@ export type InsertPick = typeof picks.$inferInsert;
  */
 export const chatMessages = mysqlTable("chat_messages", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().default(0),
+  guestId: varchar("guestId", { length: 64 }),
   role: mysqlEnum("role", ["user", "assistant"]).notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -67,7 +69,8 @@ export type InsertChatMessage = typeof chatMessages.$inferInsert;
  */
 export const rounds = mysqlTable("rounds", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().default(0),
+  guestId: varchar("guestId", { length: 64 }),
   courseName: varchar("courseName", { length: 256 }).notNull(),
   score: int("score").notNull(),
   par: int("par").notNull().default(72),
@@ -87,7 +90,8 @@ export type InsertRound = typeof rounds.$inferInsert;
  */
 export const wallyMemories = mysqlTable("wally_memories", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId").notNull().default(0),
+  guestId: varchar("guestId", { length: 64 }),
   category: mysqlEnum("category", ["course", "moment", "player", "note", "bucket_list"]).notNull().default("note"),
   title: varchar("title", { length: 256 }).notNull(),
   content: text("content").notNull(),

@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { Flag, LogIn, Plus, Trophy, TrendingDown, TrendingUp, MessageSquare, ChevronDown } from "lucide-react";
+import { useGuestId } from "@/hooks/useGuestId";
+import { Flag, Plus, Trophy, TrendingDown, TrendingUp, MessageSquare, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -81,7 +80,7 @@ function RoundCard({ round }: { round: any }) {
 }
 
 export default function MyGame() {
-  const { isAuthenticated } = useAuth();
+  const guestId = useGuestId();
   const [showForm, setShowForm] = useState(false);
   const [course, setCourse] = useState("");
   const [score, setScore] = useState("");
@@ -90,9 +89,10 @@ export default function MyGame() {
   const [notes, setNotes] = useState("");
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().split("T")[0]);
 
-  const { data: rounds, refetch } = trpc.game.myRounds.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
+  const { data: rounds, refetch } = trpc.game.myRounds.useQuery(
+    { guestId },
+    { enabled: !!guestId }
+  );
 
   const logRound = trpc.game.logRound.useMutation({
     onSuccess: () => {
@@ -104,25 +104,6 @@ export default function MyGame() {
     },
     onError: (err: any) => toast.error(err.message ?? "Couldn't log the round."),
   });
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-sm mx-auto">
-        <div className="w-16 h-16 rounded-full club-header flex items-center justify-center">
-          <Flag size={28} className="text-brass" />
-        </div>
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-foreground mb-2">My Game</h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Log your rounds and Wally will react to every score — good, bad, or ugly.
-          </p>
-        </div>
-        <a href={getLoginUrl()} className="inline-flex items-center gap-2 px-6 py-3 rounded-lg brass-badge font-semibold text-sm hover:opacity-90 transition-opacity">
-          <LogIn size={16} /> Sign in to track your game
-        </a>
-      </div>
-    );
-  }
 
   const totalRounds = rounds?.length ?? 0;
   const avgScore = totalRounds > 0
@@ -261,7 +242,7 @@ export default function MyGame() {
                 <button
                   onClick={() => {
                     if (!course || !score || !par) { toast.error("Course, score, and par are required."); return; }
-                    logRound.mutate({ courseName: course, score: parseInt(score), par: parseInt(par), tees: tees || undefined, notes: notes || undefined, playedAt });
+                    logRound.mutate({ courseName: course, score: parseInt(score), par: parseInt(par), tees: tees || undefined, notes: notes || undefined, playedAt, guestId });
                   }}
                   disabled={logRound.isPending}
                   className="flex-1 py-3 rounded-xl brass-badge font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"

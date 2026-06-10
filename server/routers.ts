@@ -120,16 +120,18 @@ const golfRouter = router({
     return getTopStories(5);
   }),
 
-  chat: protectedProcedure
+  chat: publicProcedure
     .input(
       z.object({
         message: z.string().min(1).max(2000),
+        guestId: z.string().min(1),
         history: z
           .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
           .optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
       // Pull top stories to give Caddie current context
       let newsContext = "";
       try {
@@ -163,15 +165,20 @@ const golfRouter = router({
           ? rawContent
           : "Sorry man, lost my train of thought there. Hit me again.";
 
-      await saveChatMessage({ userId: ctx.user.id, role: "user", content: input.message });
-      await saveChatMessage({ userId: ctx.user.id, role: "assistant", content: assistantContent });
+      try {
+        await saveChatMessage({ userId, guestId: input.guestId, role: "user", content: input.message });
+        await saveChatMessage({ userId, guestId: input.guestId, role: "assistant", content: assistantContent });
+      } catch { /* non-critical */ }
 
       return { content: assistantContent };
     }),
 
-  chatHistory: protectedProcedure.query(async ({ ctx }) => {
-    return getChatHistory(ctx.user.id, 30);
-  }),
+  chatHistory: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      return getChatHistory(userId, input.guestId, 30);
+    }),
 
   morningBriefing: publicProcedure.query(async () => {
     // Generate a short, personal daily golf note from Wally to Jamie
@@ -213,7 +220,7 @@ const golfRouter = router({
 // ── Picks router ─────────────────────────────────────────────────────────────
 
 const picksRouter = router({
-  makeShowdownPick: protectedProcedure
+  makeShowdownPick: publicProcedure
     .input(
       z.object({
         tournamentId: z.string(),
@@ -221,10 +228,12 @@ const picksRouter = router({
         playerName: z.string(),
         playerId: z.string().optional(),
         jamieReasoning: z.string().optional(),
+        guestId: z.string().min(1),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const existing = await getPickByUserAndTournament(ctx.user.id, input.tournamentId);
+      const userId = ctx.user?.id ?? 0;
+      const existing = await getPickByUserAndTournament(userId, input.guestId, input.tournamentId);
       if (existing) {
         throw new Error("You already have a call in for this tournament.");
       }
@@ -256,7 +265,8 @@ const picksRouter = router({
       const aiReasoning = lines.slice(1).join(" ").trim() || undefined;
 
       await createPick({
-        userId: ctx.user.id,
+        userId,
+        guestId: input.guestId,
         tournamentId: input.tournamentId,
         tournamentName: input.tournamentName,
         playerName: input.playerName,
@@ -269,22 +279,26 @@ const picksRouter = router({
       return { success: true, aiPick, aiReasoning: aiReasoning ?? "" };
     }),
 
-  // Keep legacy alias so old code doesn't break
-  makePick: protectedProcedure
-    .input(z.object({ tournamentId: z.string(), tournamentName: z.string(), playerName: z.string(), playerId: z.string().optional() }))
+  // Legacy alias — kept for backward compat, uses guestId now
+  makePick: publicProcedure
+    .input(z.object({ tournamentId: z.string(), tournamentName: z.string(), playerName: z.string(), playerId: z.string().optional(), guestId: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      const existing = await getPickByUserAndTournament(ctx.user.id, input.tournamentId);
+      const userId = ctx.user?.id ?? 0;
+      const existing = await getPickByUserAndTournament(userId, input.guestId, input.tournamentId);
       if (existing) throw new Error("Already picked.");
       const r = await invokeLLM({ messages: [{ role: "user" as const, content: `One player name only: who wins ${input.tournamentName}?` }] });
       const raw = r?.choices?.[0]?.message?.content;
       const aiPick = typeof raw === "string" ? raw.trim() : "Scottie Scheffler";
-      await createPick({ userId: ctx.user.id, ...input, aiPickPlayerName: aiPick });
+      await createPick({ userId, guestId: input.guestId, tournamentId: input.tournamentId, tournamentName: input.tournamentName, playerName: input.playerName, playerId: input.playerId, aiPickPlayerName: aiPick });
       return { success: true, aiPick };
     }),
 
-  myPicks: protectedProcedure.query(async ({ ctx }) => {
-    return getUserPicks(ctx.user.id);
-  }),
+  myPicks: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      return getUserPicks(userId, input.guestId);
+    }),
 
   bragBoard: publicProcedure.query(async () => {
     const allPicks = await getAllPicks();
@@ -307,7 +321,7 @@ const picksRouter = router({
 // ── My Game router ────────────────────────────────────────────────────────────────────────────────────
 
 const gameRouter = router({
-  logRound: protectedProcedure
+  logRound: publicProcedure
     .input(
       z.object({
         courseName: z.string().min(1),
@@ -315,10 +329,12 @@ const gameRouter = router({
         par: z.number().int().min(60).max(80).default(72),
         tees: z.string().optional(),
         notes: z.string().optional(),
-        playedAt: z.string(), // ISO date string YYYY-MM-DD
+        playedAt: z.string(),
+        guestId: z.string().min(1),
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
       const diff = input.score - input.par;
       const diffStr = diff === 0 ? "even par" : diff > 0 ? `+${diff} over par` : `${Math.abs(diff)} under par`;
       const notesContext = input.notes ? `Jamie's notes: "${input.notes}"` : "";
@@ -340,7 +356,8 @@ const gameRouter = router({
       const wallyReaction = typeof rawReaction === "string" ? rawReaction.trim() : "Nice round, man. Keep it up.";
 
       const round = await createRound({
-        userId: ctx.user.id,
+        userId,
+        guestId: input.guestId,
         courseName: input.courseName,
         score: input.score,
         par: input.par,
@@ -353,35 +370,44 @@ const gameRouter = router({
       return { success: true, wallyReaction, roundId: round };
     }),
 
-  myRounds: protectedProcedure.query(async ({ ctx }) => {
-    return getUserRounds(ctx.user.id);
-  }),
+  myRounds: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      return getUserRounds(userId, input.guestId);
+    }),
 });
 
 // ── Memory router ───────────────────────────────────────────────────────────────────
 
 const memoryRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    return getUserMemories(ctx.user.id);
-  }),
+  list: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      return getUserMemories(userId, input.guestId);
+    }),
 
-  add: protectedProcedure
+  add: publicProcedure
     .input(
       z.object({
         category: z.enum(["course", "moment", "player", "note", "bucket_list"]),
         title: z.string().min(1).max(256),
         content: z.string().min(1),
+        guestId: z.string().min(1),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      await createMemory({ userId: ctx.user.id, ...input });
+      const userId = ctx.user?.id ?? 0;
+      await createMemory({ userId, guestId: input.guestId, category: input.category, title: input.title, content: input.content });
       return { success: true };
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.number() }))
+  delete: publicProcedure
+    .input(z.object({ id: z.number(), guestId: z.string().min(1) }))
     .mutation(async ({ input, ctx }) => {
-      await deleteMemory(input.id, ctx.user.id);
+      const userId = ctx.user?.id ?? 0;
+      await deleteMemory(input.id, userId, input.guestId);
       return { success: true };
     }),
 });

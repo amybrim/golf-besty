@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { Target, Trophy, Flag, LogIn, CheckCircle, XCircle, Clock, ChevronDown } from "lucide-react";
+import { useGuestId } from "@/hooks/useGuestId";
+import { Target, Trophy, Flag, CheckCircle, XCircle, Clock, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -67,7 +66,7 @@ function PickCard({ pick }: { pick: any }) {
 }
 
 export default function Picks() {
-  const { isAuthenticated } = useAuth();
+  const guestId = useGuestId();
   const [selectedTournament, setSelectedTournament] = useState<{ id: string; name: string } | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [showResult, setShowResult] = useState<{ aiPick: string } | null>(null);
@@ -75,9 +74,10 @@ export default function Picks() {
 
   const { data: tournaments } = trpc.golf.tournaments.useQuery();
   const { data: fieldData } = trpc.golf.field.useQuery();
-  const { data: myPicks, refetch: refetchPicks } = trpc.picks.myPicks.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
+  const { data: myPicks, refetch: refetchPicks } = trpc.picks.myPicks.useQuery(
+    { guestId },
+    { enabled: !!guestId }
+  );
 
   const pickableTournaments = tournaments?.filter(
     (t) => t.status === "upcoming" || t.status === "in_progress"
@@ -106,31 +106,9 @@ export default function Picks() {
       tournamentId: selectedTournament.id,
       tournamentName: selectedTournament.name,
       playerName: selectedPlayer,
+      guestId,
     });
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <div className="w-16 h-16 rounded-full club-header flex items-center justify-center">
-          <Target size={28} className="text-brass" />
-        </div>
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-foreground mb-2">Bragging Rights Await</h2>
-          <p className="text-muted-foreground max-w-sm">
-            Sign in to make your picks and go head-to-head with The Caddie.
-          </p>
-        </div>
-        <a
-          href={getLoginUrl()}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg brass-badge font-semibold text-sm hover:opacity-90 transition-opacity"
-        >
-          <LogIn size={16} />
-          Sign in to play
-        </a>
-      </div>
-    );
-  }
 
   const userScore = myPicks?.filter((p) => p.isResolved && p.isCorrect).length ?? 0;
   const aiScore = myPicks?.filter((p) => p.isResolved && p.aiIsCorrect).length ?? 0;

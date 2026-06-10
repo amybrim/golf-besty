@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+import { useGuestId } from "@/hooks/useGuestId";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Plus, Trash2, MapPin, Zap, User, FileText, Flag, LogIn } from "lucide-react";
+import { Brain, Plus, Trash2, MapPin, Zap, User, FileText, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -25,9 +24,12 @@ function CategoryIcon({ category, size = 14 }: { category: Category; size?: numb
 }
 
 export default function Memory() {
-  const { isAuthenticated } = useAuth();
+  const guestId = useGuestId();
   const utils = trpc.useUtils();
-  const { data: memories, isLoading } = trpc.memory.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: memories, isLoading } = trpc.memory.list.useQuery(
+    { guestId },
+    { enabled: !!guestId }
+  );
 
   const addMemory = trpc.memory.add.useMutation({
     onSuccess: () => {
@@ -52,19 +54,6 @@ export default function Memory() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [filterCat, setFilterCat] = useState<Category | "all">("all");
-
-  if (!isAuthenticated) {
-    return (
-      <div className="max-w-lg mx-auto text-center py-20">
-        <Brain size={40} className="text-brass mx-auto mb-4 opacity-60" />
-        <h2 className="font-serif text-2xl font-bold text-foreground mb-2">Wally's Memory</h2>
-        <p className="text-muted-foreground mb-6">Sign in so Wally can remember your courses, moments, and bucket list.</p>
-        <a href={getLoginUrl()} className="inline-flex items-center gap-2 px-6 py-3 rounded-lg brass-badge font-semibold text-sm">
-          <LogIn size={16} /> Sign in to continue
-        </a>
-      </div>
-    );
-  }
 
   const filtered = memories?.filter((m) => filterCat === "all" || m.category === filterCat) ?? [];
 
@@ -158,7 +147,7 @@ export default function Memory() {
                 size="sm"
                 className="brass-badge text-sm font-semibold"
                 disabled={!title.trim() || !content.trim() || addMemory.isPending}
-                onClick={() => addMemory.mutate({ category, title: title.trim(), content: content.trim() })}
+                onClick={() => addMemory.mutate({ category, title: title.trim(), content: content.trim(), guestId })}
               >
                 {addMemory.isPending ? "Saving..." : "Save to Wally"}
               </Button>
@@ -232,7 +221,7 @@ export default function Memory() {
                     <p className="text-muted-foreground text-sm leading-relaxed">{mem.content}</p>
                   </div>
                   <button
-                    onClick={() => deleteMemory.mutate({ id: mem.id })}
+                    onClick={() => deleteMemory.mutate({ id: mem.id, guestId })}
                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-all"
                     title="Remove memory"
                   >

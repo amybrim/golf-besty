@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Target, Trophy, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare } from "lucide-react";
+import { useGuestId } from "@/hooks/useGuestId";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -109,7 +109,7 @@ function ShowdownCard({ pick }: { pick: any }) {
 }
 
 export default function Showdown() {
-  const { isAuthenticated } = useAuth();
+  const guestId = useGuestId();
   const [selectedTournament, setSelectedTournament] = useState<{ id: string; name: string } | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [jamieReasoning, setJamieReasoning] = useState("");
@@ -118,9 +118,10 @@ export default function Showdown() {
 
   const { data: tournaments } = trpc.golf.tournaments.useQuery();
   const { data: fieldData } = trpc.golf.field.useQuery();
-  const { data: myPicks, refetch: refetchPicks } = trpc.picks.myPicks.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
+  const { data: myPicks, refetch: refetchPicks } = trpc.picks.myPicks.useQuery(
+    { guestId },
+    { enabled: !!guestId }
+  );
 
   const pickableTournaments = tournaments?.filter(
     (t) => t.status === "upcoming" || t.status === "in_progress"
@@ -349,6 +350,7 @@ export default function Showdown() {
                       tournamentName: selectedTournament.name,
                       playerName: selectedPlayer,
                       jamieReasoning: jamieReasoning || undefined,
+                      guestId,
                     })}
                     disabled={makePick.isPending}
                     className="w-full py-3.5 rounded-xl brass-badge font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"

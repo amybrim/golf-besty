@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { Send, MessageSquare, LogIn, Flag, Volume2, VolumeX, Mic, MicOff, Zap } from "lucide-react";
+import { useGuestId } from "@/hooks/useGuestId";
+import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
 
@@ -42,20 +41,47 @@ function speakText(text: string, onEnd?: () => void) {
     .replace(/\n+/g, ". ")
     .trim();
   const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.rate = 0.95;
-  utterance.pitch = 1.0;
+  utterance.rate = 0.88;  // slightly slower — warm, unhurried, like a friend talking
+  utterance.pitch = 0.92; // slightly lower pitch — masculine, calm
   utterance.volume = 1.0;
-  // Pick a natural-sounding voice if available
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(
-    (v) =>
-      v.lang.startsWith("en") &&
-      (v.name.includes("Daniel") ||
-        v.name.includes("Alex") ||
-        v.name.includes("Google US English") ||
-        v.name.includes("Samantha"))
-  );
-  if (preferred) utterance.voice = preferred;
+
+  // Pick the best available voice — prefer warm male voices, avoid robotic defaults
+  const setVoice = () => {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    // Priority order: best natural voices first
+    const priority = [
+      "Daniel",        // macOS/iOS — warm British male, excellent quality
+      "Arthur",        // macOS Ventura+ — natural British male
+      "Gordon",        // macOS — calm male
+      "Fred",          // macOS — deep male
+      "Alex",          // older macOS — natural US male
+      "Google UK English Male", // Chrome — natural British male
+      "Google US English",     // Chrome — natural US
+      "Microsoft Guy",         // Windows — natural male
+      "Microsoft David",       // Windows — natural male
+      "en-US-GuyNeural",       // Edge neural — excellent
+      "en-GB-RyanNeural",      // Edge neural — warm British
+    ];
+    const enVoices = voices.filter((v) => v.lang.startsWith("en"));
+    let chosen: SpeechSynthesisVoice | undefined;
+    for (const name of priority) {
+      chosen = enVoices.find((v) => v.name.includes(name));
+      if (chosen) break;
+    }
+    // Fallback: first English male-sounding voice, or just first English voice
+    if (!chosen) {
+      chosen = enVoices.find((v) => !v.name.toLowerCase().includes("female") && !v.name.includes("Samantha") && !v.name.includes("Karen") && !v.name.includes("Victoria")) ?? enVoices[0];
+    }
+    if (chosen) utterance.voice = chosen;
+  };
+
+  // Voices may not be loaded yet on first call
+  if (window.speechSynthesis.getVoices().length > 0) {
+    setVoice();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => { setVoice(); window.speechSynthesis.onvoiceschanged = null; };
+  }
   if (onEnd) utterance.onend = onEnd;
   window.speechSynthesis.speak(utterance);
 }
@@ -101,7 +127,7 @@ function SpeakerButton({ text, autoPlay }: { text: string; autoPlay: boolean }) 
 }
 
 export default function Chat() {
-  const { isAuthenticated } = useAuth();
+  const guestId = useGuestId();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -111,9 +137,10 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  const { data: history } = trpc.golf.chatHistory.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
+  const { data: history } = trpc.golf.chatHistory.useQuery(
+    { guestId },
+    { enabled: !!guestId }
+  );
 
   const chatMutation = trpc.golf.chat.useMutation({
     onSuccess: (data) => {
@@ -159,6 +186,7 @@ export default function Chat() {
       setLatestAiIndex(null);
       chatMutation.mutate({
         message: text,
+        guestId,
         history: messages.slice(-10),
       });
     },
@@ -197,29 +225,6 @@ export default function Chat() {
   const hasSpeechRecognition =
     typeof window !== "undefined" &&
     ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <div className="w-16 h-16 rounded-full club-header flex items-center justify-center">
-          <MessageSquare size={28} className="text-brass" />
-        </div>
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-foreground mb-2">Wally's Ready</h2>
-          <p className="text-muted-foreground max-w-sm">
-            Sign in and Wally will be right there.
-          </p>
-        </div>
-        <a
-          href={getLoginUrl()}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg brass-badge font-semibold text-sm hover:opacity-90 transition-opacity"
-        >
-          <LogIn size={16} />
-          Sign in to talk to Wally
-        </a>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] max-w-3xl mx-auto">

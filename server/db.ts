@@ -1,6 +1,19 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, picks, chatMessages, rounds, wallyMemories, familyDrops, InsertPick, InsertChatMessage, InsertRound, InsertWallyMemory, InsertFamilyDrop } from "../drizzle/schema";
+import {
+  InsertUser,
+  users,
+  picks,
+  chatMessages,
+  rounds,
+  wallyMemories,
+  familyDrops,
+  InsertPick,
+  InsertChatMessage,
+  InsertRound,
+  InsertWallyMemory,
+  InsertFamilyDrop,
+} from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -65,7 +78,7 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// ── Picks ────────────────────────────────────────────────────────────────────
+// ── Picks ─────────────────────────────────────────────────────────────────────
 
 export async function createPick(pick: InsertPick) {
   const db = await getDb();
@@ -73,21 +86,37 @@ export async function createPick(pick: InsertPick) {
   await db.insert(picks).values(pick);
 }
 
-export async function getPickByUserAndTournament(userId: number, tournamentId: string) {
+/** Find existing pick by guestId OR userId (whichever is set) */
+export async function getPickByUserAndTournament(
+  userId: number,
+  guestId: string,
+  tournamentId: string
+) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db
     .select()
     .from(picks)
-    .where(and(eq(picks.userId, userId), eq(picks.tournamentId, tournamentId)))
+    .where(
+      and(
+        or(
+          guestId ? eq(picks.guestId, guestId) : undefined,
+          userId > 0 ? eq(picks.userId, userId) : undefined
+        ),
+        eq(picks.tournamentId, tournamentId)
+      )
+    )
     .limit(1);
   return result[0] ?? undefined;
 }
 
-export async function getUserPicks(userId: number) {
+export async function getUserPicks(userId: number, guestId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(picks).where(eq(picks.userId, userId)).orderBy(desc(picks.createdAt));
+  const condition = guestId
+    ? or(eq(picks.guestId, guestId), userId > 0 ? eq(picks.userId, userId) : undefined)
+    : eq(picks.userId, userId);
+  return db.select().from(picks).where(condition).orderBy(desc(picks.createdAt));
 }
 
 export async function getAllPicks() {
@@ -96,12 +125,27 @@ export async function getAllPicks() {
   return db.select().from(picks).orderBy(desc(picks.createdAt));
 }
 
-// ── Chat Messages ────────────────────────────────────────────────────────────
+// ── Chat Messages ─────────────────────────────────────────────────────────────
 
 export async function saveChatMessage(msg: InsertChatMessage) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.insert(chatMessages).values(msg);
+}
+
+export async function getChatHistory(userId: number, guestId: string, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = guestId
+    ? or(eq(chatMessages.guestId, guestId), userId > 0 ? eq(chatMessages.userId, userId) : undefined)
+    : eq(chatMessages.userId, userId);
+  const rows = await db
+    .select()
+    .from(chatMessages)
+    .where(condition)
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(limit);
+  return rows.reverse();
 }
 
 // ── Rounds ────────────────────────────────────────────────────────────────────
@@ -113,22 +157,13 @@ export async function createRound(round: InsertRound) {
   return (result as any)[0]?.insertId ?? null;
 }
 
-export async function getUserRounds(userId: number) {
+export async function getUserRounds(userId: number, guestId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(rounds).where(eq(rounds.userId, userId)).orderBy(desc(rounds.createdAt));
-}
-
-export async function getChatHistory(userId: number, limit = 20) {
-  const db = await getDb();
-  if (!db) return [];
-  const rows = await db
-    .select()
-    .from(chatMessages)
-    .where(eq(chatMessages.userId, userId))
-    .orderBy(desc(chatMessages.createdAt))
-    .limit(limit);
-  return rows.reverse(); // oldest first for display
+  const condition = guestId
+    ? or(eq(rounds.guestId, guestId), userId > 0 ? eq(rounds.userId, userId) : undefined)
+    : eq(rounds.userId, userId);
+  return db.select().from(rounds).where(condition).orderBy(desc(rounds.createdAt));
 }
 
 // ── Wally Memories ────────────────────────────────────────────────────────────
@@ -140,16 +175,22 @@ export async function createMemory(memory: InsertWallyMemory) {
   return (result as any)[0]?.insertId ?? null;
 }
 
-export async function getUserMemories(userId: number) {
+export async function getUserMemories(userId: number, guestId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(wallyMemories).where(eq(wallyMemories.userId, userId)).orderBy(desc(wallyMemories.createdAt));
+  const condition = guestId
+    ? or(eq(wallyMemories.guestId, guestId), userId > 0 ? eq(wallyMemories.userId, userId) : undefined)
+    : eq(wallyMemories.userId, userId);
+  return db.select().from(wallyMemories).where(condition).orderBy(desc(wallyMemories.createdAt));
 }
 
-export async function deleteMemory(id: number, userId: number) {
+export async function deleteMemory(id: number, userId: number, guestId: string) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(wallyMemories).where(and(eq(wallyMemories.id, id), eq(wallyMemories.userId, userId)));
+  const condition = guestId
+    ? and(eq(wallyMemories.id, id), or(eq(wallyMemories.guestId, guestId), userId > 0 ? eq(wallyMemories.userId, userId) : undefined))
+    : and(eq(wallyMemories.id, id), eq(wallyMemories.userId, userId));
+  await db.delete(wallyMemories).where(condition);
 }
 
 // ── Family Drops ─────────────────────────────────────────────────────────────
