@@ -15,6 +15,7 @@ import Feed from "./pages/Feed";
 import Memory from "./pages/Memory";
 import Trivia from "./pages/Trivia";
 import FamilyDrops from "./pages/FamilyDrops";
+import VoiceAid from "./pages/VoiceAid";
 import Layout from "./components/Layout";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
         <Route path="/memory" component={Memory} />
         <Route path="/trivia" component={Trivia} />
         <Route path="/family" component={FamilyDrops} />
+        <Route path="/voice-aid" component={VoiceAid} />
         {/* Legacy redirect */}
         <Route path="/picks" component={Showdown} />
         <Route path="/404" component={NotFound} />

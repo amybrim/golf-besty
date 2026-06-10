@@ -101,3 +101,11 @@
 - [ ] Family Drops: Amy and family can leave Wally a message or memory that Jamie sees when he opens the app
 - [ ] TTS read-aloud on Feed page: speaker button on each news story
 - [ ] TTS read-aloud on Tournaments page: Wally narrates the leaderboard
+
+## Voice Aid — Jamie's Communication Tool
+- [ ] Dedicated Voice Aid page: Jamie types or taps, app speaks it aloud for people in the room
+- [ ] Large easy-to-read text input — big font, easy to type on phone
+- [ ] Speak button: tap to have the app read what Jamie typed out loud at full volume
+- [ ] Quick phrase bank: pre-loaded common phrases Jamie can tap without typing
+- [ ] Custom phrase saving: Jamie can add his own phrases to the quick bank
+- [ ] Voice Aid in sidebar navigation — clearly labeled

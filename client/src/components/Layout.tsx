@@ -11,6 +11,7 @@ import {
   Brain,
   HelpCircle,
   Heart,
+  Volume2,
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +26,7 @@ const navItems = [
   { path: "/trivia", label: "Golf Trivia", icon: HelpCircle },
   { path: "/memory", label: "Wally's Memory", icon: Brain },
   { path: "/family", label: "From the Family", icon: Heart },
+  { path: "/voice-aid", label: "Voice Aid", icon: Volume2 },
   { path: "/odds", label: "Market Odds", icon: TrendingUp },
 ];
 
