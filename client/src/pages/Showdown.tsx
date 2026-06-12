@@ -153,7 +153,7 @@ export default function Showdown() {
       <div>
         <h1 className="font-serif text-3xl font-bold text-foreground mb-1">Wally vs Jamie</h1>
         <p className="text-muted-foreground text-sm font-mono">
-          Every week, one tournament. Two calls. Human gut vs AI intelligence. Who's right?
+          Pick the winner of any tournament. Two calls — human gut vs AI. Who's right?
         </p>
       </div>
 
@@ -208,7 +208,7 @@ export default function Showdown() {
         <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target size={16} className="text-brass" />
-            <span className="font-serif font-semibold text-foreground">Make Your Call This Week</span>
+            <span className="font-serif font-semibold text-foreground">Make Your Call</span>
           </div>
           <div className="brass-divider mb-5" />
 
@@ -257,7 +257,7 @@ export default function Showdown() {
               {/* Tournament */}
               <div>
                 <label className="text-muted-foreground text-xs uppercase tracking-wider font-mono block mb-2">
-                  This week's tournament
+                  Choose a tournament
                 </label>
                 <div className="space-y-2">
                   {pickableTournaments.map((t: any) => {
@@ -275,8 +275,19 @@ export default function Showdown() {
                             : "border-border hover:border-brass/40 text-foreground"
                         }`}
                       >
-                        <div className="font-medium text-sm">{t.name}</div>
-                        {t.venue && <div className="text-xs text-muted-foreground font-mono mt-0.5">{t.venue}</div>}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="font-medium text-sm">{t.name}</div>
+                          {t.status === "in_progress" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-light/10 text-green-light text-xs font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse" />
+                              Live
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {t.venue && t.venue !== "TBD" && <span className="text-xs text-muted-foreground font-mono">{t.venue}</span>}
+                          {t.tour && <span className="text-xs text-muted-foreground font-mono">{t.tour}</span>}
+                        </div>
                         {alreadyPicked && <div className="text-xs text-brass font-mono mt-0.5">Already called ✓</div>}
                       </button>
                     );

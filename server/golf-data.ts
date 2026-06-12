@@ -61,41 +61,115 @@ export interface PolymarketGolfMarket {
 
 // ── ESPN API helpers ─────────────────────────────────────────────────────────
 
+// Helper to parse ESPN events from a raw response
+function parseESPNEvents(data: any, tour: string): Tournament[] {
+  const events: Tournament[] = [];
+  const eventsArr = data?.events ?? [];
+
+  for (const evt of eventsArr) {
+    const comp = evt?.competitions?.[0];
+    const venue = comp?.venue;
+    const status = evt?.status?.type?.name ?? "";
+
+    let tournStatus: Tournament["status"] = "upcoming";
+    if (status === "STATUS_IN_PROGRESS") tournStatus = "in_progress";
+    else if (status === "STATUS_FINAL" || status === "STATUS_FINAL_OVERTIME") tournStatus = "completed";
+
+    events.push({
+      id: evt.id ?? evt.uid ?? String(Math.random()),
+      name: evt.name ?? evt.shortName ?? "Unknown Tournament",
+      startDate: evt.date ?? "",
+      endDate: comp?.endDate ?? evt.date ?? "",
+      venue: venue?.fullName ?? venue?.name ?? "TBD",
+      city: venue?.address?.city ?? "",
+      state: venue?.address?.state ?? "",
+      purse: comp?.purse
+        ? `$${Number(comp.purse).toLocaleString()}`
+        : undefined,
+      status: tournStatus,
+      tour,
+    });
+  }
+  return events;
+}
+
+// Generate upcoming Thursday dates for the next N weeks
+function getUpcomingThursdayDates(weeksAhead: number): string[] {
+  const dates: string[] = [];
+  const now = new Date();
+  // Start from 2 weeks ago to catch recent completed events
+  for (let i = -2; i <= weeksAhead; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i * 7);
+    // Format as YYYYMMDD
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    dates.push(`${y}${m}${day}`);
+  }
+  return dates;
+}
+
 export async function fetchPGASchedule(): Promise<Tournament[]> {
   try {
-    const res = await fetch(`${ESPN_GOLF_BASE}/scoreboard?limit=20`);
-    if (!res.ok) throw new Error(`ESPN schedule error: ${res.status}`);
-    const data = await res.json() as any;
+    const allEvents: Tournament[] = [];
+    const seen = new Set<string>();
 
-    const events: Tournament[] = [];
-    const eventsArr = data?.events ?? [];
-
-    for (const evt of eventsArr) {
-      const comp = evt?.competitions?.[0];
-      const venue = comp?.venue;
-      const status = evt?.status?.type?.name ?? "";
-
-      let tournStatus: Tournament["status"] = "upcoming";
-      if (status === "STATUS_IN_PROGRESS") tournStatus = "in_progress";
-      else if (status === "STATUS_FINAL") tournStatus = "completed";
-
-      events.push({
-        id: evt.id ?? evt.uid ?? String(Math.random()),
-        name: evt.name ?? evt.shortName ?? "Unknown Tournament",
-        startDate: evt.date ?? "",
-        endDate: comp?.endDate ?? evt.date ?? "",
-        venue: venue?.fullName ?? venue?.name ?? "TBD",
-        city: venue?.address?.city ?? "",
-        state: venue?.address?.state ?? "",
-        purse: evt?.competitions?.[0]?.purse
-          ? `$${Number(evt.competitions[0].purse).toLocaleString()}`
-          : undefined,
-        status: tournStatus,
-        tour: "PGA Tour",
-      });
+    // Fetch current week (always)
+    const currentRes = await fetch(`${ESPN_GOLF_BASE}/scoreboard`, { signal: AbortSignal.timeout(8000) });
+    if (currentRes.ok) {
+      const data = await currentRes.json() as any;
+      for (const evt of parseESPNEvents(data, "PGA Tour")) {
+        if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
+      }
     }
 
-    return events;
+    // Fetch upcoming weeks (next 6 weeks)
+    const weekDates = getUpcomingThursdayDates(6);
+    const fetchPromises = weekDates.map(async (dateStr) => {
+      const endDate = String(Number(dateStr) + 3); // 4-day window
+      try {
+        const res = await fetch(
+          `${ESPN_GOLF_BASE}/scoreboard?dates=${dateStr}-${endDate}`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        if (!res.ok) return [];
+        const data = await res.json() as any;
+        return parseESPNEvents(data, "PGA Tour");
+      } catch { return []; }
+    });
+
+    const results = await Promise.allSettled(fetchPromises);
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        for (const evt of result.value) {
+          if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
+        }
+      }
+    }
+
+    // Also fetch LIV Golf current week
+    try {
+      const livRes = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/golf/liv/scoreboard`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (livRes.ok) {
+        const livData = await livRes.json() as any;
+        for (const evt of parseESPNEvents(livData, "LIV Golf")) {
+          if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
+        }
+      }
+    } catch { /* LIV optional */ }
+
+    // Sort: in_progress first, then upcoming by date, then completed
+    return allEvents.sort((a, b) => {
+      const order = { in_progress: 0, upcoming: 1, completed: 2 };
+      const oa = order[a.status] ?? 3;
+      const ob = order[b.status] ?? 3;
+      if (oa !== ob) return oa - ob;
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
   } catch (err) {
     console.error("[GolfData] ESPN schedule fetch failed:", err);
     return [];
