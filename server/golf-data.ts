@@ -178,10 +178,11 @@ export async function fetchPGASchedule(): Promise<Tournament[]> {
 
 export async function fetchPGALeaderboard(eventId?: string): Promise<LeaderboardEntry[]> {
   try {
+    // Use event-specific URL with limit=200 to get full field (default truncates at ~32KB)
     const url = eventId
-      ? `${ESPN_GOLF_BASE}/scoreboard?event=${eventId}`
-      : `${ESPN_GOLF_BASE}/scoreboard`;
-    const res = await fetch(url);
+      ? `${ESPN_GOLF_BASE}/scoreboard?event=${eventId}&limit=200`
+      : `${ESPN_GOLF_BASE}/scoreboard?limit=200`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error(`ESPN leaderboard error: ${res.status}`);
     const data = await res.json() as any;
 
@@ -190,17 +191,58 @@ export async function fetchPGALeaderboard(eventId?: string): Promise<Leaderboard
     const competitors = competitions?.[0]?.competitors ?? [];
 
     for (const c of competitors) {
-      const stats = c?.statistics ?? [];
-      const rounds = c?.linescores?.map((ls: any) => String(ls?.value ?? "-")) ?? [];
+      // Position comes from `order` field (ESPN sorts by leaderboard position)
+      const position = typeof c?.order === "number" ? c.order : 999;
+
+      // Total score: c.score is the raw number (e.g. -10), format it
+      const rawScore = c?.score;
+      let totalScore = "E";
+      if (rawScore !== undefined && rawScore !== null && rawScore !== "") {
+        const n = Number(rawScore);
+        if (!isNaN(n)) {
+          totalScore = n === 0 ? "E" : n > 0 ? `+${n}` : String(n);
+        } else {
+          totalScore = String(rawScore);
+        }
+      }
+
+      // Today's score and thru: from the most recent round's linescores
+      let todayScore = "-";
+      let thruHoles = "-";
+      const roundLinescores: any[] = c?.linescores ?? [];
+      // Find the last round that has hole-by-hole data
+      for (let i = roundLinescores.length - 1; i >= 0; i--) {
+        const round = roundLinescores[i];
+        const holeData = (round?.linescores ?? []).filter(
+          (h: any) => h?.value !== null && h?.value !== undefined && typeof h.value === "number"
+        );
+        if (holeData.length > 0) {
+          // Format today's score
+          const todayRaw = round?.value;
+          const todayN = Number(todayRaw);
+          if (!isNaN(todayN)) {
+            // todayRaw is the round score (e.g. 67), convert to vs-par
+            todayScore = round?.displayValue ?? (todayN === 0 ? "E" : todayN > 0 ? `+${todayN}` : String(todayN));
+          } else {
+            todayScore = round?.displayValue ?? "-";
+          }
+          thruHoles = holeData.length < 18 ? `${holeData.length}` : "F";
+          break;
+        }
+      }
+
+      const rounds = roundLinescores
+        .filter((ls: any) => ls?.displayValue && ls.displayValue !== "?")
+        .map((ls: any) => ls.displayValue ?? String(ls.value ?? "-"));
 
       entries.push({
-        position: c?.status?.position?.id ? Number(c.status.position.id) : 999,
+        position,
         playerName: c?.athlete?.displayName ?? c?.athlete?.fullName ?? "Unknown",
         playerId: c?.athlete?.id,
         country: c?.athlete?.flag?.alt ?? c?.athlete?.country,
-        totalScore: c?.score ?? c?.status?.displayValue ?? "E",
-        thru: c?.status?.thru ?? c?.status?.displayValue ?? "-",
-        today: c?.linescores?.slice(-1)?.[0]?.value?.toString() ?? "-",
+        totalScore,
+        thru: thruHoles,
+        today: todayScore,
         rounds,
       });
     }

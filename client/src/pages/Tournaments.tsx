@@ -28,6 +28,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function LeaderboardPanel({ eventId }: { eventId?: string }) {
+  const [showAll, setShowAll] = useState(false);
   const { data: leaderboard, isLoading } = trpc.golf.leaderboard.useQuery(
     { eventId },
     { refetchInterval: 60000 }
@@ -64,7 +65,7 @@ function LeaderboardPanel({ eventId }: { eventId?: string }) {
           </tr>
         </thead>
         <tbody>
-          {leaderboard.slice(0, 15).map((entry, i) => (
+          {(showAll ? leaderboard : leaderboard.slice(0, 25)).map((entry, i) => (
             <tr key={i} className="scorecard-row hover:bg-muted/30 transition-colors">
               <td className="py-2.5 font-score text-muted-foreground text-xs">
                 {entry.position === 999 ? "-" : entry.position}
@@ -88,7 +89,15 @@ function LeaderboardPanel({ eventId }: { eventId?: string }) {
           ))}
         </tbody>
       </table>
-      <p className="text-muted-foreground/50 text-xs font-mono mt-3 text-right">
+      {leaderboard.length > 25 && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full mt-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors border-t border-border"
+        >
+          {showAll ? "Show less" : `Show all ${leaderboard.length} players`}
+        </button>
+      )}
+      <p className="text-muted-foreground/50 text-xs font-mono mt-2 text-right">
         Via ESPN · Updates every 60s
       </p>
     </div>
