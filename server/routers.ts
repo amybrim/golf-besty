@@ -238,6 +238,26 @@ const picksRouter = router({
         throw new Error("You already have a call in for this tournament.");
       }
 
+      // Fetch the actual confirmed field from ESPN so Wally only picks real entrants
+      let confirmedField: string[] = [];
+      try {
+        const lbRes = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${input.tournamentId}&limit=200`,
+          { signal: AbortSignal.timeout(12000) }
+        );
+        if (lbRes.ok) {
+          const lbData = await lbRes.json() as any;
+          const competitors = lbData?.events?.[0]?.competitions?.[0]?.competitors ?? [];
+          confirmedField = competitors
+            .map((c: any) => c?.athlete?.displayName ?? "")
+            .filter(Boolean);
+        }
+      } catch { /* field fetch optional — fall back to open pick */ }
+
+      const fieldContext = confirmedField.length > 0
+        ? `\n\nHere is the CONFIRMED field for this tournament (you MUST pick from this list only):\n${confirmedField.join(", ")}\n\nDo NOT pick any player not in this list — they are not playing this week.`
+        : "";
+
       // Wally generates his pick AND explains his reasoning like a best friend
       const wallyContext = input.jamieReasoning
         ? `Jamie says: "${input.jamieReasoning}"`
@@ -247,7 +267,7 @@ const picksRouter = router({
         messages: [
           {
             role: "system",
-            content: `You are Wally — Jamie's AI golf best friend. You're making your tournament winner prediction for the ${input.tournamentName}. Jamie picked ${input.playerName}. ${wallyContext}\n\nRespond as Wally would to his best friend: pick your winner, explain your reasoning with real stats/form/course fit in 2-3 sentences of natural banter, and react to Jamie's pick if he gave one. Keep it warm, funny, and real — like texting your golf buddy. Format: start with just the player name on the first line, then a blank line, then your reasoning.`,
+            content: `You are Wally — Jamie's AI golf best friend. You're making your tournament winner prediction for the ${input.tournamentName}. Jamie picked ${input.playerName}. ${wallyContext}${fieldContext}\n\nRespond as Wally would to his best friend: pick your winner from the confirmed field, explain your reasoning with real stats/form/course fit in 2-3 sentences of natural banter, and react to Jamie's pick if he gave one. Keep it warm, funny, and real — like texting your golf buddy. Format: start with just the player name on the first line, then a blank line, then your reasoning.`,
           },
           {
             role: "user",
@@ -257,11 +277,23 @@ const picksRouter = router({
       });
 
       const rawContent = wallyResponse?.choices?.[0]?.message?.content;
-      const fullResponse = typeof rawContent === "string" ? rawContent.trim() : "Scottie Scheffler";
+      const fullResponse = typeof rawContent === "string" ? rawContent.trim() : (confirmedField[0] ?? "Scottie Scheffler");
 
       // Parse: first line = player name, rest = reasoning
       const lines = fullResponse.split("\n").filter((l: string) => l.trim());
-      const aiPick = lines[0]?.trim() ?? "Scottie Scheffler";
+      let aiPick = lines[0]?.trim() ?? (confirmedField[0] ?? "Scottie Scheffler");
+
+      // Safety check: if Wally still picked someone not in the field, swap to the leader
+      if (confirmedField.length > 0) {
+        const inField = confirmedField.some(
+          (name) => name.toLowerCase() === aiPick.toLowerCase() ||
+                    aiPick.toLowerCase().includes(name.split(" ").pop()?.toLowerCase() ?? "")
+        );
+        if (!inField) {
+          aiPick = confirmedField[0]; // default to current leader
+        }
+      }
+
       const aiReasoning = lines.slice(1).join(" ").trim() || undefined;
 
       await createPick({

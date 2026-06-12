@@ -6,17 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 
-// Common PGA Tour field — used when live field data isn't available
-const KNOWN_FIELD = [
-  "Scottie Scheffler", "Rory McIlroy", "Xander Schauffele", "Collin Morikawa",
-  "Patrick Cantlay", "Viktor Hovland", "Ludvig Åberg", "Tommy Fleetwood",
-  "Jordan Spieth", "Justin Thomas", "Max Homa", "Tony Finau", "Hideki Matsuyama",
-  "Shane Lowry", "Matt Fitzpatrick", "Keegan Bradley", "Wyndham Clark",
-  "Russell Henley", "Sahith Theegala", "Adam Scott", "Sungjae Im",
-  "Tom Kim", "Cameron Young", "Nick Taylor", "Sepp Straka",
-  "Bryson DeChambeau", "Brooks Koepka", "Jon Rahm", "Dustin Johnson",
-  "Phil Mickelson", "Justin Rose", "Rickie Fowler", "Billy Horschel",
-];
+// No hardcoded field — always use live data from the selected tournament's leaderboard
 
 function ShowdownCard({ pick }: { pick: any }) {
   const [showReasoning, setShowReasoning] = useState(false);
@@ -117,19 +107,25 @@ export default function Showdown() {
   const [submitted, setSubmitted] = useState<{ aiPick: string; aiReasoning: string } | null>(null);
 
   const { data: tournaments } = trpc.golf.tournaments.useQuery();
-  const { data: fieldData } = trpc.golf.field.useQuery();
   const { data: myPicks, refetch: refetchPicks } = trpc.picks.myPicks.useQuery(
     { guestId },
     { enabled: !!guestId }
+  );
+
+  // Fetch live leaderboard for the selected tournament to get real confirmed field
+  const { data: liveLeaderboard } = trpc.golf.leaderboard.useQuery(
+    { eventId: selectedTournament?.id },
+    { enabled: !!selectedTournament }
   );
 
   const pickableTournaments = tournaments?.filter(
     (t) => t.status === "upcoming" || t.status === "in_progress"
   ) ?? [];
 
-  const fieldPlayers = fieldData && fieldData.length > 0
-    ? fieldData.map((p: any) => p.playerName)
-    : KNOWN_FIELD;
+  // Always use live leaderboard names — never a hardcoded fallback
+  const fieldPlayers: string[] = liveLeaderboard && liveLeaderboard.length > 0
+    ? liveLeaderboard.map((p: any) => p.playerName)
+    : [];
 
   const existingPickIds = new Set(myPicks?.map((p: any) => p.tournamentId) ?? []);
 
@@ -301,13 +297,19 @@ export default function Showdown() {
                   <label className="text-muted-foreground text-xs uppercase tracking-wider font-mono block mb-2">
                     Who's winning it?
                   </label>
+                  {fieldPlayers.length === 0 ? (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border text-muted-foreground text-sm">
+                      <div className="w-3 h-3 rounded-full border-2 border-brass border-t-transparent animate-spin" />
+                      Loading confirmed field...
+                    </div>
+                  ) : (
                   <div className="relative">
                     <button
                       onClick={() => setPlayerDropdownOpen(!playerDropdownOpen)}
                       className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-brass/40 transition-all flex items-center justify-between"
                     >
                       <span className={selectedPlayer ? "text-foreground font-medium" : "text-muted-foreground"}>
-                        {selectedPlayer || "Pick your player..."}
+                        {selectedPlayer || `Pick from ${fieldPlayers.length} players...`}
                       </span>
                       <ChevronDown size={16} className="text-muted-foreground" />
                     </button>
@@ -317,21 +319,43 @@ export default function Showdown() {
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
-                          className="absolute top-full left-0 right-0 z-20 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-56 overflow-y-auto"
+                          className="absolute top-full left-0 right-0 z-20 mt-1 bg-card border border-border rounded-xl shadow-lg"
                         >
-                          {fieldPlayers.map((player: string) => (
-                            <button
-                              key={player}
-                              onClick={() => { setSelectedPlayer(player); setPlayerDropdownOpen(false); }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-muted/50 transition-colors text-sm text-foreground border-b border-border/50 last:border-0"
-                            >
-                              {player}
-                            </button>
-                          ))}
+                          {/* Search inside dropdown */}
+                          <div className="p-2 border-b border-border sticky top-0 bg-card">
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Type to search..."
+                              className="w-full px-3 py-2 rounded-lg bg-muted text-foreground text-sm placeholder:text-muted-foreground focus:outline-none"
+                              onChange={(e) => {
+                                const q = e.target.value.toLowerCase();
+                                const list = document.getElementById('player-list');
+                                if (list) {
+                                  Array.from(list.children).forEach((el) => {
+                                    const btn = el as HTMLButtonElement;
+                                    btn.style.display = btn.textContent?.toLowerCase().includes(q) ? '' : 'none';
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div id="player-list" className="max-h-52 overflow-y-auto">
+                            {fieldPlayers.map((player: string) => (
+                              <button
+                                key={player}
+                                onClick={() => { setSelectedPlayer(player); setPlayerDropdownOpen(false); }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-muted/50 transition-colors text-sm text-foreground border-b border-border/50 last:border-0"
+                              >
+                                {player}
+                              </button>
+                            ))}
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
+                  )}
                 </div>
               )}
 
