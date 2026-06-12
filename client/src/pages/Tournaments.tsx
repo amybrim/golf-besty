@@ -29,6 +29,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function LeaderboardPanel({ eventId }: { eventId?: string }) {
   const [showAll, setShowAll] = useState(false);
+  const [search, setSearch] = useState("");
   const { data: leaderboard, isLoading } = trpc.golf.leaderboard.useQuery(
     { eventId },
     { refetchInterval: 60000 }
@@ -52,52 +53,145 @@ function LeaderboardPanel({ eventId }: { eventId?: string }) {
     );
   }
 
+  // Search logic
+  const searchTerm = search.trim().toLowerCase();
+  const matchIdx = searchTerm
+    ? leaderboard.findIndex((e) => e.playerName.toLowerCase().includes(searchTerm))
+    : -1;
+  const matchEntry = matchIdx >= 0 ? leaderboard[matchIdx] : null;
+
+  // Rows to display in table
+  let displayRows: typeof leaderboard;
+  let highlightPos = -1;
+  if (searchTerm && matchEntry) {
+    const start = Math.max(0, matchIdx - 3);
+    const end = Math.min(leaderboard.length, matchIdx + 4);
+    displayRows = leaderboard.slice(start, end);
+    highlightPos = matchIdx - start;
+  } else if (showAll) {
+    displayRows = leaderboard;
+  } else {
+    displayRows = leaderboard.slice(0, 25);
+  }
+
+  const scoreColor = (s: string) =>
+    s.startsWith("-") ? "text-green-mid" : s === "E" ? "text-foreground" : "text-destructive";
+
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="text-left pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider w-10">Pos</th>
-            <th className="text-left pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Player</th>
-            <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Total</th>
-            <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Today</th>
-            <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Thru</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(showAll ? leaderboard : leaderboard.slice(0, 25)).map((entry, i) => (
-            <tr key={i} className="scorecard-row hover:bg-muted/30 transition-colors">
-              <td className="py-2.5 font-score text-muted-foreground text-xs">
-                {entry.position === 999 ? "-" : entry.position}
-              </td>
-              <td className="py-2.5 font-medium text-foreground">{entry.playerName}</td>
-              <td className={`py-2.5 text-right font-score font-semibold ${
-                entry.totalScore.startsWith("-") ? "text-green-mid" :
-                entry.totalScore === "E" ? "text-foreground" : "text-destructive"
-              }`}>
-                {entry.totalScore}
-              </td>
-              <td className={`py-2.5 text-right font-score text-sm ${
-                entry.today.startsWith("-") ? "text-green-mid" : "text-foreground"
-              }`}>
-                {entry.today}
-              </td>
-              <td className="py-2.5 text-right font-score text-muted-foreground text-xs">
-                {entry.thru}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {leaderboard.length > 25 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="w-full mt-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors border-t border-border"
-        >
-          {showAll ? "Show less" : `Show all ${leaderboard.length} players`}
-        </button>
+    <div className="mt-4">
+      {/* Player search input */}
+      <div className="relative mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search a player..."
+          className="w-full px-4 py-2.5 pl-9 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-brass/60 transition-colors"
+        />
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+        </svg>
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-xs font-mono"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* No match */}
+      {searchTerm && !matchEntry && (
+        <p className="text-muted-foreground text-sm font-mono py-3 text-center">
+          No player found matching &ldquo;{search}&rdquo;
+        </p>
       )}
-      <p className="text-muted-foreground/50 text-xs font-mono mt-2 text-right">
+
+      {/* Match highlight card */}
+      {searchTerm && matchEntry && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-4 p-4 rounded-xl bg-brass/5 border border-brass/30"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="font-serif font-semibold text-foreground text-base leading-tight">{matchEntry.playerName}</div>
+              <div className="text-muted-foreground text-xs font-mono mt-0.5">
+                {matchEntry.country && `${matchEntry.country} · `}
+                Position #{matchEntry.position === 999 ? "–" : matchEntry.position}
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className={`font-score text-2xl font-bold ${scoreColor(matchEntry.totalScore)}`}>
+                {matchEntry.totalScore}
+              </div>
+              <div className="text-muted-foreground text-xs font-mono">
+                Today {matchEntry.today} · Thru {matchEntry.thru}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Leaderboard table */}
+      {(!searchTerm || matchEntry) && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider w-10">Pos</th>
+                <th className="text-left pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Player</th>
+                <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Total</th>
+                <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Today</th>
+                <th className="text-right pb-2 text-muted-foreground font-mono text-xs uppercase tracking-wider">Thru</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayRows.map((entry, i) => {
+                const isMatch = searchTerm && i === highlightPos;
+                return (
+                  <tr
+                    key={i}
+                    className={`scorecard-row transition-colors ${
+                      isMatch
+                        ? "bg-brass/10 border-l-2 border-brass"
+                        : "hover:bg-muted/30"
+                    }`}
+                  >
+                    <td className="py-2.5 font-score text-muted-foreground text-xs pl-2">
+                      {entry.position === 999 ? "-" : entry.position}
+                    </td>
+                    <td className={`py-2.5 font-medium ${isMatch ? "text-brass" : "text-foreground"}`}>
+                      {entry.playerName}
+                    </td>
+                    <td className={`py-2.5 text-right font-score font-semibold ${scoreColor(entry.totalScore)}`}>
+                      {entry.totalScore}
+                    </td>
+                    <td className={`py-2.5 text-right font-score text-sm ${scoreColor(entry.today)}`}>
+                      {entry.today}
+                    </td>
+                    <td className="py-2.5 text-right font-score text-muted-foreground text-xs">
+                      {entry.thru}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!searchTerm && leaderboard.length > 25 && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="w-full mt-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors border-t border-border"
+            >
+              {showAll ? "Show less" : `Show all ${leaderboard.length} players`}
+            </button>
+          )}
+        </div>
+      )}
+
+      <p className="text-muted-foreground/50 text-xs font-mono mt-3 text-right">
         Via ESPN · Updates every 60s
       </p>
     </div>
