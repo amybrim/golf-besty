@@ -42,6 +42,10 @@ export const picks = mysqlTable("picks", {
   aiIsCorrect: boolean("aiIsCorrect").default(false),
   isResolved: boolean("isResolved").default(false),
   actualWinner: varchar("actualWinner", { length: 128 }),
+  // Lock picks at tee-off — stored as ISO date string e.g. "2026-06-12"
+  tournamentStartDate: varchar("tournamentStartDate", { length: 32 }),
+  // true once tournament is in_progress or completed
+  isLocked: boolean("isLocked").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

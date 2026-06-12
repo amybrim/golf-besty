@@ -1,10 +1,107 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Target, Trophy, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare } from "lucide-react";
+import { Target, Trophy, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare, Swords, TrendingUp, RefreshCw, Lock } from "lucide-react";
 import { useGuestId } from "@/hooks/useGuestId";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
+
+// ── Night Brief Card ──────────────────────────────────────────────────────────
+function NightBriefCard({ brief }: { brief: any }) {
+  const jamiePos = brief.jamie.position;
+  const wallyPos = brief.wally.position;
+  const jamieWinning = jamiePos !== null && wallyPos !== null && jamiePos < wallyPos;
+  const wallyWinning = jamiePos !== null && wallyPos !== null && wallyPos < jamiePos;
+  const tied = jamiePos !== null && wallyPos !== null && jamiePos === wallyPos;
+
+  const scoreColor = (score: string) => {
+    if (!score || score === "–" || score === "E") return "text-foreground";
+    return score.startsWith("-") ? "text-green-mid" : "text-red-400";
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-card border border-border rounded-xl overflow-hidden"
+    >
+      {/* Header */}
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+        <div>
+          <div className="font-serif font-semibold text-foreground text-sm">{brief.tournamentName}</div>
+          <div className="text-muted-foreground text-xs font-mono mt-0.5">{brief.statusDetail}</div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {brief.statusState === "in" && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-light/10 text-green-light text-xs font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse" />
+              Live
+            </span>
+          )}
+          <Swords size={14} className="text-brass" />
+        </div>
+      </div>
+
+      {/* Battle grid */}
+      <div className="grid grid-cols-2 divide-x divide-border">
+        {/* Jamie */}
+        <div className={`px-5 py-4 ${jamieWinning ? "bg-green-light/5" : ""}`}>
+          <div className="text-muted-foreground text-xs uppercase tracking-wider font-mono mb-2">Jamie's Pick</div>
+          <div className="font-serif font-semibold text-foreground text-sm mb-2">{brief.jamie.playerName}</div>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-score text-2xl font-bold ${scoreColor(brief.jamie.total)}`}>{brief.jamie.total}</span>
+            {brief.jamie.position && (
+              <span className="text-muted-foreground text-xs font-mono">T{brief.jamie.position}</span>
+            )}
+          </div>
+          <div className="text-muted-foreground text-xs font-mono mt-1">
+            Today: <span className={scoreColor(brief.jamie.today)}>{brief.jamie.today}</span>
+            {brief.jamie.thru && brief.jamie.thru !== "-" && <span className="ml-1">· Thru {brief.jamie.thru}</span>}
+          </div>
+          {jamieWinning && (
+            <div className="mt-2 text-green-light text-xs font-mono flex items-center gap-1">
+              <TrendingUp size={11} /> Leading
+            </div>
+          )}
+        </div>
+
+        {/* Wally */}
+        <div className={`px-5 py-4 ${wallyWinning ? "bg-brass/5" : ""}`}>
+          <div className="text-muted-foreground text-xs uppercase tracking-wider font-mono mb-2">Wally's Pick</div>
+          <div className="font-serif font-semibold text-foreground text-sm mb-2">{brief.wally.playerName}</div>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-score text-2xl font-bold ${scoreColor(brief.wally.total)}`}>{brief.wally.total}</span>
+            {brief.wally.position && (
+              <span className="text-muted-foreground text-xs font-mono">T{brief.wally.position}</span>
+            )}
+          </div>
+          <div className="text-muted-foreground text-xs font-mono mt-1">
+            Today: <span className={scoreColor(brief.wally.today)}>{brief.wally.today}</span>
+            {brief.wally.thru && brief.wally.thru !== "-" && <span className="ml-1">· Thru {brief.wally.thru}</span>}
+          </div>
+          {wallyWinning && (
+            <div className="mt-2 text-brass text-xs font-mono flex items-center gap-1">
+              <TrendingUp size={11} /> Leading
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Verdict banner */}
+      {(jamieWinning || wallyWinning || tied) && (
+        <div className={`px-5 py-2.5 text-center text-xs font-mono border-t border-border ${
+          jamieWinning ? "text-green-light bg-green-light/5" :
+          wallyWinning ? "text-brass bg-brass/5" :
+          "text-muted-foreground"
+        }`}>
+          {jamieWinning && "Jamie's player is ahead right now. Human gut 🏌️"}
+          {wallyWinning && "Wally's player is ahead right now. The data doesn't lie 🤖"}
+          {tied && "Dead heat. Both players tied on the leaderboard."}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 // No hardcoded field — always use live data from the selected tournament's leaderboard
 
@@ -111,6 +208,11 @@ export default function Showdown() {
     { guestId },
     { enabled: !!guestId }
   );
+  const { data: nightBriefs, refetch: refetchBriefs } = trpc.picks.nightBrief.useQuery(
+    { guestId },
+    { enabled: !!guestId, refetchInterval: 5 * 60 * 1000 } // refresh every 5 min
+  );
+  const activeBriefs = (nightBriefs ?? []).filter((b: any) => b?.statusState === "in" || b?.statusState === "post");
 
   // Fetch live leaderboard for the selected tournament to get real confirmed field
   const { data: liveLeaderboard } = trpc.golf.leaderboard.useQuery(
@@ -413,13 +515,49 @@ export default function Showdown() {
         </div>
       )}
 
+      {/* Night Brief — live battle cards for active tournaments */}
+      {activeBriefs.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Swords size={16} className="text-brass" />
+              <h2 className="font-serif font-semibold text-foreground">Tonight's Battle</h2>
+            </div>
+            <button
+              onClick={() => refetchBriefs()}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-mono"
+            >
+              <RefreshCw size={11} /> Refresh
+            </button>
+          </div>
+          <p className="text-muted-foreground text-xs font-mono -mt-2">
+            Live positions — updates every 5 min. Locked until next tee-off.
+          </p>
+          {activeBriefs.map((brief: any) => (
+            <NightBriefCard key={brief.pickId} brief={brief} />
+          ))}
+        </section>
+      )}
+
       {/* History */}
       {myPicks && myPicks.length > 0 && (
         <section className="space-y-4">
-          <h2 className="font-serif font-semibold text-foreground">Past Showdowns</h2>
-          {myPicks.map((pick: any) => (
-            <ShowdownCard key={pick.id} pick={pick} />
-          ))}
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif font-semibold text-foreground">Past Showdowns</h2>
+          </div>
+          {myPicks.map((pick: any) => {
+            const isLocked = pick.isLocked;
+            return (
+              <div key={pick.id} className="relative">
+                {isLocked && !pick.isResolved && (
+                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                    <Lock size={10} /> Locked
+                  </div>
+                )}
+                <ShowdownCard pick={pick} />
+              </div>
+            );
+          })}
         </section>
       )}
 

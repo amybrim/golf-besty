@@ -125,6 +125,21 @@ export async function getAllPicks() {
   return db.select().from(picks).orderBy(desc(picks.createdAt));
 }
 
+/** Update Jamie's pick before tee-off (only if not locked) */
+export async function updatePick(
+  id: number,
+  userId: number,
+  guestId: string,
+  updates: { playerName?: string; playerId?: string; jamieReasoning?: string; isLocked?: boolean }
+) {
+  const db = await getDb();
+  if (!db) return;
+  const condition = guestId
+    ? and(eq(picks.id, id), or(eq(picks.guestId, guestId), userId > 0 ? eq(picks.userId, userId) : undefined))
+    : and(eq(picks.id, id), eq(picks.userId, userId));
+  await db.update(picks).set(updates).where(condition);
+}
+
 // ── Chat Messages ─────────────────────────────────────────────────────────────
 
 export async function saveChatMessage(msg: InsertChatMessage) {

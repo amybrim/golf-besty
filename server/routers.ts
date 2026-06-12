@@ -9,6 +9,7 @@ import {
   getPickByUserAndTournament,
   getUserPicks,
   getAllPicks,
+  updatePick,
   saveChatMessage,
   getChatHistory,
   createRound,
@@ -296,6 +297,24 @@ const picksRouter = router({
 
       const aiReasoning = lines.slice(1).join(" ").trim() || undefined;
 
+      // Store tournament start date and lock status from the schedule
+      let tournamentStartDate: string | undefined;
+      let isLocked = false;
+      try {
+        const scheduleRes = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${input.tournamentId}&limit=1`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        if (scheduleRes.ok) {
+          const sd = await scheduleRes.json() as any;
+          const ev = sd?.events?.[0];
+          const statusState = ev?.competitions?.[0]?.status?.type?.state;
+          isLocked = statusState === "in" || statusState === "post";
+          const dateStr = ev?.date ?? ev?.competitions?.[0]?.date;
+          if (dateStr) tournamentStartDate = dateStr.split("T")[0];
+        }
+      } catch { /* optional */ }
+
       await createPick({
         userId,
         guestId: input.guestId,
@@ -306,9 +325,120 @@ const picksRouter = router({
         aiPickPlayerName: aiPick,
         jamieReasoning: input.jamieReasoning,
         aiReasoning,
+        tournamentStartDate,
+        isLocked,
       });
 
-      return { success: true, aiPick, aiReasoning: aiReasoning ?? "" };
+      return { success: true, aiPick, aiReasoning: aiReasoning ?? "", isLocked };
+    }),
+
+  /** Change Jamie's pick before tee-off */
+  changePick: publicProcedure
+    .input(z.object({
+      pickId: z.number(),
+      playerName: z.string().min(1),
+      playerId: z.string().optional(),
+      jamieReasoning: z.string().optional(),
+      guestId: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      // Re-fetch field to validate new player is in it
+      await updatePick(input.pickId, userId, input.guestId, {
+        playerName: input.playerName,
+        playerId: input.playerId,
+        jamieReasoning: input.jamieReasoning,
+      });
+      return { success: true };
+    }),
+
+  /** Night brief — for each active pick, fetch both players' current leaderboard positions */
+  nightBrief: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      const userPicks = await getUserPicks(userId, input.guestId);
+      // Only active (not resolved) picks
+      const activePicks = userPicks.filter((p) => !p.isResolved);
+      if (activePicks.length === 0) return [];
+
+      const results = await Promise.all(
+        activePicks.map(async (pick) => {
+          try {
+            const lbRes = await fetch(
+              `https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${pick.tournamentId}&limit=200`,
+              { signal: AbortSignal.timeout(12000) }
+            );
+            if (!lbRes.ok) return null;
+            const lbData = await lbRes.json() as any;
+            const competitors: any[] = lbData?.events?.[0]?.competitions?.[0]?.competitors ?? [];
+            const statusDetail = lbData?.events?.[0]?.competitions?.[0]?.status?.type?.detail ?? "";
+            const statusState = lbData?.events?.[0]?.competitions?.[0]?.status?.type?.state ?? "pre";
+
+            const findPlayer = (name: string) => {
+              const lower = name.toLowerCase();
+              return competitors.find((c: any) =>
+                (c?.athlete?.displayName ?? "").toLowerCase() === lower ||
+                (c?.athlete?.displayName ?? "").toLowerCase().includes(lower.split(" ").pop() ?? "")
+              );
+            };
+
+            const formatScore = (raw: any) => {
+              const n = Number(raw);
+              if (isNaN(n) || raw === null || raw === undefined || raw === "") return "E";
+              return n === 0 ? "E" : n > 0 ? `+${n}` : String(n);
+            };
+
+            const jamiePlayer = findPlayer(pick.playerName);
+            const wallyPlayer = pick.aiPickPlayerName ? findPlayer(pick.aiPickPlayerName) : null;
+
+            const getThru = (c: any) => {
+              const rounds: any[] = c?.linescores ?? [];
+              for (let i = rounds.length - 1; i >= 0; i--) {
+                const holes = (rounds[i]?.linescores ?? []).filter((h: any) => typeof h?.value === "number");
+                if (holes.length > 0) return holes.length < 18 ? `${holes.length}` : "F";
+              }
+              return "-";
+            };
+
+            const getToday = (c: any) => {
+              const rounds: any[] = c?.linescores ?? [];
+              for (let i = rounds.length - 1; i >= 0; i--) {
+                const holes = (rounds[i]?.linescores ?? []).filter((h: any) => typeof h?.value === "number");
+                if (holes.length > 0) return rounds[i]?.displayValue ?? "-";
+              }
+              return "-";
+            };
+
+            return {
+              pickId: pick.id,
+              tournamentId: pick.tournamentId,
+              tournamentName: pick.tournamentName,
+              statusDetail,
+              statusState,
+              isLocked: pick.isLocked,
+              jamie: {
+                playerName: pick.playerName,
+                position: jamiePlayer?.order ?? null,
+                total: jamiePlayer ? formatScore(jamiePlayer.score) : "–",
+                today: jamiePlayer ? getToday(jamiePlayer) : "–",
+                thru: jamiePlayer ? getThru(jamiePlayer) : "–",
+              },
+              wally: {
+                playerName: pick.aiPickPlayerName ?? "–",
+                position: wallyPlayer?.order ?? null,
+                total: wallyPlayer ? formatScore(wallyPlayer.score) : "–",
+                today: wallyPlayer ? getToday(wallyPlayer) : "–",
+                thru: wallyPlayer ? getThru(wallyPlayer) : "–",
+              },
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return results.filter(Boolean);
     }),
 
   // Legacy alias — kept for backward compat, uses guestId now

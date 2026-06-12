@@ -43,6 +43,13 @@
       "when": 1781097739977,
       "tag": "0005_spotty_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1781302632379,
+      "tag": "0006_rainy_naoko",
+      "breakpoints": true
     }
   ]
 }
