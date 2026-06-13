@@ -3,11 +3,11 @@ import { trpc } from "@/lib/trpc";
 import { Newspaper, ExternalLink, RefreshCw, Flame, Tag } from "lucide-react";
 import { motion } from "framer-motion";
 
-const ALL_TAGS = ["All", "Drama", "LIV", "Major", "Injury", "Comeback", "Rivalry", "PGA", "Off-Course"];
+const ALL_TAGS = ["All", "Drama", "LPGA", "Major", "Injury", "Comeback", "Rivalry", "PGA", "Off-Course"];
 
 const TAG_COLORS: Record<string, string> = {
   Drama: "bg-red-500/10 text-red-600 border-red-200",
-  LIV: "bg-brass/10 text-brass border-brass/20",
+  LPGA: "bg-brass/10 text-brass border-brass/20",
   Major: "bg-green-mid/10 text-green-mid border-green-mid/20",
   Injury: "bg-orange-500/10 text-orange-600 border-orange-200",
   Comeback: "bg-green-light/10 text-green-light border-green-light/20",
@@ -50,7 +50,7 @@ export default function Feed() {
         <div>
           <h1 className="font-serif text-3xl font-bold text-foreground mb-1">The Locker Room</h1>
           <p className="text-muted-foreground text-sm font-mono">
-            Live golf news · LIV drama · Player stories · The talk of the tour
+            Live golf news · LPGA · Player stories · The talk of the tour
           </p>
         </div>
         <button
@@ -76,7 +76,7 @@ export default function Feed() {
             }`}
           >
             {tag === "Drama" && "🔥 "}
-            {tag === "LIV" && "💰 "}
+            {tag === "LPGA" && "🏌️‍♀️ "}
             {tag}
           </button>
         ))}

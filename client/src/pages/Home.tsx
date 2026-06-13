@@ -75,7 +75,7 @@ export default function Home() {
           </h1>
 
           <p className="text-white/65 text-base leading-relaxed mb-8 max-w-md">
-            Your golf best friend. I know everything happening on tour — PGA, LIV, the drama, the gossip, who's hot, who's choking, and what's coming up this week. Let's talk golf.
+            Your golf best friend. I know everything happening on tour — PGA, LPGA, the drama, the gossip, who's hot, who's choking, and what's coming up this week. Let's talk golf.
           </p>
 
           <div className="flex flex-wrap gap-3">

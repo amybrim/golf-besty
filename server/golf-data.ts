@@ -9,6 +9,7 @@
 
 const POLYMARKET_GAMMA = "https://gamma-api.polymarket.com";
 const ESPN_GOLF_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf/pga";
+const ESPN_LPGA_BASE = "https://site.api.espn.com/apis/site/v2/sports/golf/lpga";
 const DATAGOLF_BASE = "https://feeds.datagolf.com";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -148,19 +149,40 @@ export async function fetchPGASchedule(): Promise<Tournament[]> {
       }
     }
 
-    // Also fetch LIV Golf current week
+    // Also fetch LPGA current week + next 6 weeks
     try {
-      const livRes = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/golf/liv/scoreboard`,
+      const lpgaCurrentRes = await fetch(
+        `${ESPN_LPGA_BASE}/scoreboard`,
         { signal: AbortSignal.timeout(8000) }
       );
-      if (livRes.ok) {
-        const livData = await livRes.json() as any;
-        for (const evt of parseESPNEvents(livData, "LIV Golf")) {
+      if (lpgaCurrentRes.ok) {
+        const lpgaData = await lpgaCurrentRes.json() as any;
+        for (const evt of parseESPNEvents(lpgaData, "LPGA")) {
           if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
         }
       }
-    } catch { /* LIV optional */ }
+      // Fetch upcoming LPGA weeks too
+      const lpgaWeekPromises = weekDates.map(async (dateStr) => {
+        const endDate = String(Number(dateStr) + 3);
+        try {
+          const res = await fetch(
+            `${ESPN_LPGA_BASE}/scoreboard?dates=${dateStr}-${endDate}`,
+            { signal: AbortSignal.timeout(8000) }
+          );
+          if (!res.ok) return [];
+          const data = await res.json() as any;
+          return parseESPNEvents(data, "LPGA");
+        } catch { return []; }
+      });
+      const lpgaResults = await Promise.allSettled(lpgaWeekPromises);
+      for (const result of lpgaResults) {
+        if (result.status === "fulfilled") {
+          for (const evt of result.value) {
+            if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
+          }
+        }
+      }
+    } catch { /* LPGA optional */ }
 
     // Sort: in_progress first, then upcoming by date, then completed
     return allEvents.sort((a, b) => {

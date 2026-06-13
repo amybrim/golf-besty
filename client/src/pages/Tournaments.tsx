@@ -351,7 +351,7 @@ export default function Tournaments() {
       <div>
         <h1 className="font-serif text-3xl font-bold text-foreground mb-1">Tournaments</h1>
         <p className="text-muted-foreground text-sm font-mono">
-          PGA Tour · LIV Golf · Live leaderboards
+          PGA Tour · LPGA · Live leaderboards
           {totalCount > 0 && ` · ${totalCount} events`}
         </p>
       </div>

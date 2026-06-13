@@ -24,7 +24,7 @@ const QUICK_REACTIONS = [
   { label: "What did I miss?", emoji: "📰" },
   { label: "Trash talk me", emoji: "😤" },
   { label: "This week's tournament", emoji: "🏆" },
-  { label: "LIV drama update", emoji: "🎭" },
+  { label: "LPGA update", emoji: "🏌️‍♀️" },
 ];
 
 // Speak text using browser Web Speech API
