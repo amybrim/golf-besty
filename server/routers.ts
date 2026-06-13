@@ -85,9 +85,9 @@ const golfRouter = router({
   }),
 
   leaderboard: publicProcedure
-    .input(z.object({ eventId: z.string().optional() }).optional())
+    .input(z.object({ eventId: z.string().optional(), tour: z.string().optional() }).optional())
     .query(async ({ input }) => {
-      return fetchPGALeaderboard(input?.eventId);
+      return fetchPGALeaderboard(input?.eventId, input?.tour);
     }),
 
   players: publicProcedure.query(async () => {

@@ -253,55 +253,79 @@ async function parseESPNLeaderboardData(data: any): Promise<LeaderboardEntry[]> 
   return entries.sort((a, b) => a.position - b.position);
 }
 
-export async function fetchPGALeaderboard(eventId?: string): Promise<LeaderboardEntry[]> {
+export async function fetchPGALeaderboard(eventId?: string, tour?: string): Promise<LeaderboardEntry[]> {
   try {
-    // Try PGA Tour endpoint first
+    const isLPGA = tour === "LPGA";
+    const base = isLPGA ? ESPN_LPGA_BASE : ESPN_GOLF_BASE;
+
+    if (isLPGA) {
+      // For LPGA events, scan a wide date window to find the event with players
+      // ESPN LPGA is slow to update — event param alone often returns 0 players
+      const now = new Date();
+      const dateRanges: string[] = [];
+      for (let i = -3; i <= 2; i++) {
+        const start = new Date(now);
+        start.setDate(start.getDate() + i * 7);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+        dateRanges.push(`${fmt(start)}-${fmt(end)}`);
+      }
+
+      // Try event-specific URL first
+      if (eventId) {
+        try {
+          const res = await fetch(`${base}/scoreboard?dates=${dateRanges[3]}&limit=200`, { signal: AbortSignal.timeout(10000) });
+          if (res.ok) {
+            const data = await res.json() as any;
+            const ev = (data?.events ?? []).find((e: any) => e.id === eventId);
+            if (ev) {
+              const players = ev?.competitions?.[0]?.competitors ?? [];
+              if (players.length > 0) return await parseESPNLeaderboardData({ events: [ev] });
+            }
+          }
+        } catch { /* continue */ }
+      }
+
+      // Scan all date ranges to find the matching event or most recent with players
+      const scanResults = await Promise.allSettled(
+        dateRanges.map(async (range) => {
+          const res = await fetch(`${base}/scoreboard?dates=${range}&limit=200`, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) return [];
+          return (await res.json() as any)?.events ?? [];
+        })
+      );
+
+      const allLPGAEvents: any[] = [];
+      for (const r of scanResults) {
+        if (r.status === "fulfilled") allLPGAEvents.push(...r.value);
+      }
+
+      // Find exact match first
+      if (eventId) {
+        const exact = allLPGAEvents.find((e: any) => e.id === eventId);
+        if (exact) {
+          const players = exact?.competitions?.[0]?.competitors ?? [];
+          if (players.length > 0) return await parseESPNLeaderboardData({ events: [exact] });
+        }
+      }
+
+      // Fall back to most recent LPGA event with players (in-progress preferred)
+      const withPlayers = allLPGAEvents.filter((e: any) => (e?.competitions?.[0]?.competitors ?? []).length > 0);
+      const inProgress = withPlayers.find((e: any) => e?.competitions?.[0]?.status?.type?.state === "in");
+      const mostRecent = inProgress ?? withPlayers[withPlayers.length - 1];
+      if (mostRecent) return await parseESPNLeaderboardData({ events: [mostRecent] });
+
+      return []; // No LPGA data available yet
+    }
+
+    // PGA Tour: use event-specific URL with limit=200
     const url = eventId
-      ? `${ESPN_GOLF_BASE}/scoreboard?event=${eventId}&limit=200`
-      : `${ESPN_GOLF_BASE}/scoreboard?limit=200`;
+      ? `${base}/scoreboard?event=${eventId}&limit=200`
+      : `${base}/scoreboard?limit=200`;
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error(`ESPN leaderboard error: ${res.status}`);
     const data = await res.json() as any;
-
-    // If PGA returns no players, try LPGA endpoint (ESPN is slow to update LPGA)
-    const pgaPlayers = data?.events?.[0]?.competitions?.[0]?.competitors ?? [];
-    if (pgaPlayers.length === 0 && eventId) {
-      // Try LPGA endpoint with wider date window (past 2 weeks + current)
-      const lpgaUrls = [
-        `${ESPN_LPGA_BASE}/scoreboard?event=${eventId}&limit=200`,
-        `${ESPN_LPGA_BASE}/scoreboard?dates=20260601-20260620&limit=200`,
-        `${ESPN_LPGA_BASE}/scoreboard?dates=20260608-20260615&limit=200`,
-      ];
-      for (const lpgaUrl of lpgaUrls) {
-        try {
-          const lpgaRes = await fetch(lpgaUrl, { signal: AbortSignal.timeout(10000) });
-          if (!lpgaRes.ok) continue;
-          const lpgaData = await lpgaRes.json() as any;
-          // Find the matching event or any event with players
-          const lpgaEvents = lpgaData?.events ?? [];
-          for (const ev of lpgaEvents) {
-            const lpgaPlayers = ev?.competitions?.[0]?.competitors ?? [];
-            if (lpgaPlayers.length > 0) {
-              // Check if this is the right event or use it as fallback
-              if (!eventId || ev.id === eventId) {
-                const entries = await parseESPNLeaderboardData({ events: [ev] });
-                if (entries.length > 0) return entries;
-              }
-            }
-          }
-          // If no exact match, return the most recent LPGA event with players
-          for (const ev of lpgaEvents) {
-            const lpgaPlayers = ev?.competitions?.[0]?.competitors ?? [];
-            if (lpgaPlayers.length > 0) {
-              const entries = await parseESPNLeaderboardData({ events: [ev] });
-              if (entries.length > 0) return entries;
-            }
-          }
-        } catch { continue; }
-      }
-    }
-
-    // Use the shared parser for PGA data
     return await parseESPNLeaderboardData(data);
   } catch (err) {
     console.error("[GolfData] ESPN leaderboard fetch failed:", err);

@@ -27,11 +27,11 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function LeaderboardPanel({ eventId }: { eventId?: string }) {
+function LeaderboardPanel({ eventId, tour }: { eventId?: string; tour?: string }) {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
   const { data: leaderboard, isLoading } = trpc.golf.leaderboard.useQuery(
-    { eventId },
+    { eventId, tour },
     { refetchInterval: 60000 }
   );
 
@@ -312,7 +312,7 @@ function TournamentCard({
             <h4 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               {isLive ? "Live Leaderboard" : tournament.status === "completed" ? "Final Results" : "Field Preview"}
             </h4>
-            <LeaderboardPanel eventId={tournament.id} />
+            <LeaderboardPanel eventId={tournament.id} tour={tournament.tour} />
           </motion.div>
         )}
       </AnimatePresence>
