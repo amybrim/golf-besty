@@ -149,24 +149,25 @@ export async function fetchPGASchedule(): Promise<Tournament[]> {
       }
     }
 
-    // Also fetch LPGA current week + next 6 weeks
+    // Also fetch LPGA — scan wider window: past 3 weeks + next 6 weeks
+    // ESPN is slow to update LPGA live data, so we need a wider window
     try {
-      const lpgaCurrentRes = await fetch(
-        `${ESPN_LPGA_BASE}/scoreboard`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (lpgaCurrentRes.ok) {
-        const lpgaData = await lpgaCurrentRes.json() as any;
-        for (const evt of parseESPNEvents(lpgaData, "LPGA")) {
-          if (!seen.has(evt.id)) { seen.add(evt.id); allEvents.push(evt); }
-        }
+      // Build LPGA date ranges: past 3 weeks + next 6 weeks in 7-day chunks
+      const lpgaDateRanges: string[] = [];
+      const now2 = new Date();
+      for (let i = -3; i <= 6; i++) {
+        const start = new Date(now2);
+        start.setDate(start.getDate() + i * 7);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+        lpgaDateRanges.push(`${fmt(start)}-${fmt(end)}`);
       }
-      // Fetch upcoming LPGA weeks too
-      const lpgaWeekPromises = weekDates.map(async (dateStr) => {
-        const endDate = String(Number(dateStr) + 3);
+
+      const lpgaWeekPromises = lpgaDateRanges.map(async (range) => {
         try {
           const res = await fetch(
-            `${ESPN_LPGA_BASE}/scoreboard?dates=${dateStr}-${endDate}`,
+            `${ESPN_LPGA_BASE}/scoreboard?dates=${range}&limit=200`,
             { signal: AbortSignal.timeout(8000) }
           );
           if (!res.ok) return [];
@@ -198,9 +199,63 @@ export async function fetchPGASchedule(): Promise<Tournament[]> {
   }
 }
 
+async function parseESPNLeaderboardData(data: any): Promise<LeaderboardEntry[]> {
+  const entries: LeaderboardEntry[] = [];
+  const competitions = data?.events?.[0]?.competitions ?? [];
+  const competitors = competitions?.[0]?.competitors ?? [];
+
+  for (const c of competitors) {
+    const position = typeof c?.order === "number" ? c.order : 999;
+    const rawScore = c?.score;
+    let totalScore = "E";
+    if (rawScore !== undefined && rawScore !== null && rawScore !== "") {
+      const n = Number(rawScore);
+      if (!isNaN(n)) {
+        totalScore = n === 0 ? "E" : n > 0 ? `+${n}` : String(n);
+      } else {
+        totalScore = String(rawScore);
+      }
+    }
+    let todayScore = "-";
+    let thruHoles = "-";
+    const roundLinescores: any[] = c?.linescores ?? [];
+    for (let i = roundLinescores.length - 1; i >= 0; i--) {
+      const round = roundLinescores[i];
+      const holeData = (round?.linescores ?? []).filter(
+        (h: any) => h?.value !== null && h?.value !== undefined && typeof h.value === "number"
+      );
+      if (holeData.length > 0) {
+        const todayRaw = round?.value;
+        const todayN = Number(todayRaw);
+        if (!isNaN(todayN)) {
+          todayScore = round?.displayValue ?? (todayN === 0 ? "E" : todayN > 0 ? `+${todayN}` : String(todayN));
+        } else {
+          todayScore = round?.displayValue ?? "-";
+        }
+        thruHoles = holeData.length < 18 ? `${holeData.length}` : "F";
+        break;
+      }
+    }
+    const rounds = roundLinescores
+      .filter((ls: any) => ls?.displayValue && ls.displayValue !== "?")
+      .map((ls: any) => ls.displayValue ?? String(ls.value ?? "-"));
+    entries.push({
+      position,
+      playerName: c?.athlete?.displayName ?? c?.athlete?.fullName ?? "Unknown",
+      playerId: c?.athlete?.id,
+      country: c?.athlete?.flag?.alt ?? c?.athlete?.country,
+      totalScore,
+      thru: thruHoles,
+      today: todayScore,
+      rounds,
+    });
+  }
+  return entries.sort((a, b) => a.position - b.position);
+}
+
 export async function fetchPGALeaderboard(eventId?: string): Promise<LeaderboardEntry[]> {
   try {
-    // Use event-specific URL with limit=200 to get full field (default truncates at ~32KB)
+    // Try PGA Tour endpoint first
     const url = eventId
       ? `${ESPN_GOLF_BASE}/scoreboard?event=${eventId}&limit=200`
       : `${ESPN_GOLF_BASE}/scoreboard?limit=200`;
@@ -208,68 +263,46 @@ export async function fetchPGALeaderboard(eventId?: string): Promise<Leaderboard
     if (!res.ok) throw new Error(`ESPN leaderboard error: ${res.status}`);
     const data = await res.json() as any;
 
-    const entries: LeaderboardEntry[] = [];
-    const competitions = data?.events?.[0]?.competitions ?? [];
-    const competitors = competitions?.[0]?.competitors ?? [];
-
-    for (const c of competitors) {
-      // Position comes from `order` field (ESPN sorts by leaderboard position)
-      const position = typeof c?.order === "number" ? c.order : 999;
-
-      // Total score: c.score is the raw number (e.g. -10), format it
-      const rawScore = c?.score;
-      let totalScore = "E";
-      if (rawScore !== undefined && rawScore !== null && rawScore !== "") {
-        const n = Number(rawScore);
-        if (!isNaN(n)) {
-          totalScore = n === 0 ? "E" : n > 0 ? `+${n}` : String(n);
-        } else {
-          totalScore = String(rawScore);
-        }
-      }
-
-      // Today's score and thru: from the most recent round's linescores
-      let todayScore = "-";
-      let thruHoles = "-";
-      const roundLinescores: any[] = c?.linescores ?? [];
-      // Find the last round that has hole-by-hole data
-      for (let i = roundLinescores.length - 1; i >= 0; i--) {
-        const round = roundLinescores[i];
-        const holeData = (round?.linescores ?? []).filter(
-          (h: any) => h?.value !== null && h?.value !== undefined && typeof h.value === "number"
-        );
-        if (holeData.length > 0) {
-          // Format today's score
-          const todayRaw = round?.value;
-          const todayN = Number(todayRaw);
-          if (!isNaN(todayN)) {
-            // todayRaw is the round score (e.g. 67), convert to vs-par
-            todayScore = round?.displayValue ?? (todayN === 0 ? "E" : todayN > 0 ? `+${todayN}` : String(todayN));
-          } else {
-            todayScore = round?.displayValue ?? "-";
+    // If PGA returns no players, try LPGA endpoint (ESPN is slow to update LPGA)
+    const pgaPlayers = data?.events?.[0]?.competitions?.[0]?.competitors ?? [];
+    if (pgaPlayers.length === 0 && eventId) {
+      // Try LPGA endpoint with wider date window (past 2 weeks + current)
+      const lpgaUrls = [
+        `${ESPN_LPGA_BASE}/scoreboard?event=${eventId}&limit=200`,
+        `${ESPN_LPGA_BASE}/scoreboard?dates=20260601-20260620&limit=200`,
+        `${ESPN_LPGA_BASE}/scoreboard?dates=20260608-20260615&limit=200`,
+      ];
+      for (const lpgaUrl of lpgaUrls) {
+        try {
+          const lpgaRes = await fetch(lpgaUrl, { signal: AbortSignal.timeout(10000) });
+          if (!lpgaRes.ok) continue;
+          const lpgaData = await lpgaRes.json() as any;
+          // Find the matching event or any event with players
+          const lpgaEvents = lpgaData?.events ?? [];
+          for (const ev of lpgaEvents) {
+            const lpgaPlayers = ev?.competitions?.[0]?.competitors ?? [];
+            if (lpgaPlayers.length > 0) {
+              // Check if this is the right event or use it as fallback
+              if (!eventId || ev.id === eventId) {
+                const entries = await parseESPNLeaderboardData({ events: [ev] });
+                if (entries.length > 0) return entries;
+              }
+            }
           }
-          thruHoles = holeData.length < 18 ? `${holeData.length}` : "F";
-          break;
-        }
+          // If no exact match, return the most recent LPGA event with players
+          for (const ev of lpgaEvents) {
+            const lpgaPlayers = ev?.competitions?.[0]?.competitors ?? [];
+            if (lpgaPlayers.length > 0) {
+              const entries = await parseESPNLeaderboardData({ events: [ev] });
+              if (entries.length > 0) return entries;
+            }
+          }
+        } catch { continue; }
       }
-
-      const rounds = roundLinescores
-        .filter((ls: any) => ls?.displayValue && ls.displayValue !== "?")
-        .map((ls: any) => ls.displayValue ?? String(ls.value ?? "-"));
-
-      entries.push({
-        position,
-        playerName: c?.athlete?.displayName ?? c?.athlete?.fullName ?? "Unknown",
-        playerId: c?.athlete?.id,
-        country: c?.athlete?.flag?.alt ?? c?.athlete?.country,
-        totalScore,
-        thru: thruHoles,
-        today: todayScore,
-        rounds,
-      });
     }
 
-    return entries.sort((a, b) => a.position - b.position);
+    // Use the shared parser for PGA data
+    return await parseESPNLeaderboardData(data);
   } catch (err) {
     console.error("[GolfData] ESPN leaderboard fetch failed:", err);
     return [];
