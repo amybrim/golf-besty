@@ -261,12 +261,23 @@ function TournamentPickCard({
                     <label className="text-muted-foreground text-xs uppercase tracking-wider font-mono block mb-2">
                       Who's winning it?
                     </label>
-                    {fieldPlayers.length === 0 ? (
-                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border text-muted-foreground text-sm">
-                        <div className="w-3 h-3 rounded-full border-2 border-brass border-t-transparent animate-spin" />
-                        Loading confirmed field...
-                      </div>
-                    ) : (
+                  {fieldPlayers.length === 0 && !liveLeaderboard ? (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border text-muted-foreground text-sm">
+                      <div className="w-3 h-3 rounded-full border-2 border-brass border-t-transparent animate-spin" />
+                      Loading confirmed field...
+                    </div>
+                  ) : fieldPlayers.length === 0 ? (
+                    <div className="px-4 py-3 rounded-lg border border-border bg-muted/30">
+                      <p className="text-muted-foreground text-sm font-mono">
+                        Field not yet confirmed — ESPN releases the official entry list closer to tee-off.
+                      </p>
+                      {tournament.startDate && (
+                        <p className="text-muted-foreground text-xs font-mono mt-1">
+                          Tournament starts {new Date(tournament.startDate).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}. Check back a day or two before.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
                       <div className="relative">
                         <button
                           onClick={() => setDropdownOpen((v) => !v)}
