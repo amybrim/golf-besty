@@ -122,7 +122,7 @@ function TournamentPickCard({
   const alreadyPicked = !!existingPick;
 
   const { data: liveLeaderboard } = trpc.golf.leaderboard.useQuery(
-    { eventId: tournament.id },
+    { eventId: tournament.id, tour: tournament.tour === "LPGA" ? "LPGA" : "PGA" },
     { enabled: open && !alreadyPicked }
   );
 
@@ -364,6 +364,7 @@ function TournamentPickCard({
                             playerName: selectedPlayer,
                             jamieReasoning: jamieReasoning || undefined,
                             guestId,
+                            tour: tournament.tour === "LPGA" ? "LPGA" : "PGA",
                           })
                         }
                         disabled={makePick.isPending}

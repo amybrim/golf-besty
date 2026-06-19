@@ -252,6 +252,7 @@ const picksRouter = router({
         playerId: z.string().optional(),
         jamieReasoning: z.string().optional(),
         guestId: z.string().min(1),
+        tour: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -264,8 +265,12 @@ const picksRouter = router({
       // Fetch the actual confirmed field from ESPN so Wally only picks real entrants
       let confirmedField: string[] = [];
       try {
+        const isLPGA = input.tour === "LPGA";
+        const espnBase = isLPGA
+          ? "https://site.api.espn.com/apis/site/v2/sports/golf/lpga"
+          : "https://site.api.espn.com/apis/site/v2/sports/golf/pga";
         const lbRes = await fetch(
-          `https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${input.tournamentId}&limit=200`,
+          `${espnBase}/scoreboard?event=${input.tournamentId}&limit=200`,
           { signal: AbortSignal.timeout(12000) }
         );
         if (lbRes.ok) {
