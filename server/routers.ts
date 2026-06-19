@@ -28,6 +28,9 @@ import {
   getTopPhrases,
   getHourlyActivity,
   getAnalyticsEvents,
+  getDailyActivity,
+  getDailyVoiceAid,
+  getCategoryBreakdown,
 } from "./db";
 import {
   fetchPGASchedule,
@@ -707,12 +710,15 @@ const analyticsRouter = router({
       return { ok: true };
     }),
 
-  /** Admin dashboard data — event counts, top phrases, hourly activity */
+  /** Admin dashboard data — event counts, top phrases, hourly activity, daily trends, categories */
   dashboard: publicProcedure.query(async () => {
-    const [eventCounts, topPhrases, hourlyRaw] = await Promise.all([
+    const [eventCounts, topPhrases, hourlyRaw, dailyRaw, dailyVoiceAidRaw, categoryRaw] = await Promise.all([
       getEventCounts(),
       getTopPhrases(20),
       getHourlyActivity(),
+      getDailyActivity(30),
+      getDailyVoiceAid(30),
+      getCategoryBreakdown(),
     ]);
 
     // Map event names to human-readable labels
@@ -744,10 +750,28 @@ const analyticsRouter = router({
       total: Number(row.total),
     }));
 
+    const daily = ((dailyRaw as any)?.[0] ?? []).map((row: any) => ({
+      day: String(row.day).slice(0, 10),
+      total: Number(row.total),
+    }));
+
+    const dailyVoiceAid = ((dailyVoiceAidRaw as any)?.[0] ?? []).map((row: any) => ({
+      day: String(row.day).slice(0, 10),
+      total: Number(row.total),
+    }));
+
+    const categories = ((categoryRaw as any)?.[0] ?? []).map((row: any) => ({
+      category: String(row.category),
+      total: Number(row.total),
+    }));
+
     return {
       features,
       topPhrases: (topPhrases as any[]).map((r: any) => ({ label: r.label ?? "(unknown)", total: Number(r.total) })),
       hourly,
+      daily,
+      dailyVoiceAid,
+      categories,
     };
   }),
 });

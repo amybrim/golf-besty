@@ -315,3 +315,55 @@ export async function getHourlyActivity() {
     ORDER BY hour
   `);
 }
+
+/** Get daily activity for the past N days — for trend charts */
+export async function getDailyActivity(days = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.execute(sql`
+    SELECT DATE(createdAt) as day, COUNT(*) as total
+    FROM analytics_events
+    WHERE createdAt >= DATE_SUB(NOW(), INTERVAL ${days} DAY)
+    GROUP BY DATE(createdAt)
+    ORDER BY day ASC
+  `);
+}
+
+/** Get daily Voice Aid usage for the past N days */
+export async function getDailyVoiceAid(days = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.execute(sql`
+    SELECT DATE(createdAt) as day, COUNT(*) as total
+    FROM analytics_events
+    WHERE event IN ('voice_aid_phrase_tap', 'voice_aid_typed_speak', 'voice_aid_say_again')
+      AND createdAt >= DATE_SUB(NOW(), INTERVAL ${days} DAY)
+    GROUP BY DATE(createdAt)
+    ORDER BY day ASC
+  `);
+}
+
+/** Get category breakdown: Communication vs Entertainment vs Golf */
+export async function getCategoryBreakdown() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.execute(sql`
+    SELECT
+      CASE
+        WHEN event IN ('voice_aid_phrase_tap','voice_aid_typed_speak','voice_aid_say_again') THEN 'Communication (Voice Aid)'
+        WHEN event IN ('family_drop_played','family_drop_received') THEN 'Family Connection'
+        WHEN event IN ('chat_message_sent') THEN 'Wally Chat'
+        WHEN event IN ('showdown_pick_made','showdown_pick_changed') THEN 'Golf — Showdown'
+        WHEN event IN ('trivia_answered') THEN 'Golf — Trivia'
+        WHEN event IN ('round_logged') THEN 'Golf — My Game'
+        WHEN event IN ('morning_briefing_opened') THEN 'Morning Briefing'
+        WHEN event IN ('memory_added') THEN 'Memory Keeper'
+        ELSE 'Other'
+      END as category,
+      COUNT(*) as total
+    FROM analytics_events
+    WHERE event != 'page_view'
+    GROUP BY category
+    ORDER BY total DESC
+  `);
+}
