@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useGuestId } from "@/hooks/useGuestId";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { Flag, Plus, Trophy, TrendingDown, TrendingUp, MessageSquare, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -81,7 +82,10 @@ function RoundCard({ round }: { round: any }) {
 
 export default function MyGame() {
   const guestId = useGuestId();
+  const { track } = useAnalytics(guestId ?? undefined);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => { track("page_view", { page: "/mygame" }); }, []);
   const [course, setCourse] = useState("");
   const [score, setScore] = useState("");
   const [par, setPar] = useState("72");
@@ -96,6 +100,7 @@ export default function MyGame() {
 
   const logRound = trpc.game.logRound.useMutation({
     onSuccess: () => {
+      track("round_logged");
       toast.success("Round logged. Wally's got thoughts.");
       refetch();
       setShowForm(false);

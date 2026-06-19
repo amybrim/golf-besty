@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, RefreshCw, Volume2, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,11 @@ function speakText(text: string) {
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export default function Trivia() {
+  const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
+  const { track } = useAnalytics(guestId);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+
+  useEffect(() => { track("page_view", { page: "/trivia" }); }, []);
   const [selected, setSelected] = useState<string | null>(null);
   const [reaction, setReaction] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
@@ -47,6 +52,7 @@ export default function Trivia() {
       if (!question || selected) return;
       setSelected(optionLetter);
       const correct = optionLetter === question.answer;
+      track("trivia_answered", { metadata: { correct } });
       setScore((s) => ({ correct: s.correct + (correct ? 1 : 0), total: s.total + 1 }));
       reactMutation.mutate({
         question: question.question,

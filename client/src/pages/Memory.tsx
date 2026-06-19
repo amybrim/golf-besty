@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useGuestId } from "@/hooks/useGuestId";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Plus, Trash2, MapPin, Zap, User, FileText, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,10 @@ function CategoryIcon({ category, size = 14 }: { category: Category; size?: numb
 
 export default function Memory() {
   const guestId = useGuestId();
+  const { track } = useAnalytics(guestId ?? undefined);
   const utils = trpc.useUtils();
+
+  useEffect(() => { track("page_view", { page: "/memory" }); }, []);
   const { data: memories, isLoading } = trpc.memory.list.useQuery(
     { guestId },
     { enabled: !!guestId }
@@ -33,6 +37,7 @@ export default function Memory() {
 
   const addMemory = trpc.memory.add.useMutation({
     onSuccess: () => {
+      track("memory_added");
       utils.memory.list.invalidate();
       setTitle("");
       setContent("");

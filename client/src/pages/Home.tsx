@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { MessageSquare, Trophy, Target, ArrowRight, Newspaper, ExternalLink, Flame, Volume2, VolumeX, Coffee } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -42,6 +43,16 @@ export default function Home() {
   const { data: topStories } = trpc.golf.topStories.useQuery();
   const { data: briefing, isLoading: briefingLoading } = trpc.golf.morningBriefing.useQuery();
   const [briefingSpeaking, setBriefingSpeaking] = useState(false);
+  const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
+  const { track } = useAnalytics(guestId);
+
+  // Track page view on mount
+  useEffect(() => { track("page_view", { page: "/" }); }, []);
+
+  // Track morning briefing opened when it loads
+  useEffect(() => {
+    if (briefing) track("morning_briefing_opened");
+  }, [!!briefing]);
 
   const activeTournament = tournaments?.find((t) => t.status === "in_progress");
   const nextTournament = tournaments?.find((t) => t.status === "upcoming");

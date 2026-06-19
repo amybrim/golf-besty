@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Send, Volume2, CheckCheck, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,12 @@ function timeAgo(dateStr: string | Date): string {
 }
 
 export default function FamilyDrops() {
+  const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
+  const { track } = useAnalytics(guestId);
   const utils = trpc.useUtils();
   const { data: drops, isLoading } = trpc.family.all.useQuery();
+
+  useEffect(() => { track("page_view", { page: "/family" }); }, []);
   const unreadCount = drops?.filter((d) => !d.isRead).length ?? 0;
 
   const dropMutation = trpc.family.drop.useMutation({
@@ -169,7 +174,7 @@ export default function FamilyDrops() {
                     )}
                     {"speechSynthesis" in window && (
                       <button
-                        onClick={() => speakText(`Message from ${drop.fromName}: ${drop.message}`)}
+                        onClick={() => { track("family_drop_played", { label: drop.fromName }); speakText(`Message from ${drop.fromName}: ${drop.message}`); }}
                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-brass transition-all"
                         title="Read aloud"
                       >

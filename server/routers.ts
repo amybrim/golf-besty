@@ -21,6 +21,13 @@ import {
   getUnreadFamilyDrops,
   getAllFamilyDrops,
   markFamilyDropRead,
+  getCachedBriefing,
+  cacheBriefing,
+  logAnalyticsEvent,
+  getEventCounts,
+  getTopPhrases,
+  getHourlyActivity,
+  getAnalyticsEvents,
 } from "./db";
 import {
   fetchPGASchedule,
@@ -182,7 +189,14 @@ const golfRouter = router({
     }),
 
   morningBriefing: publicProcedure.query(async () => {
-    // Generate a short, personal daily golf note from Wally to Jamie
+    // Cache key = today's date in UTC (YYYY-MM-DD)
+    const dateKey = new Date().toISOString().slice(0, 10);
+
+    // Serve cached version if already generated today
+    const cached = await getCachedBriefing(dateKey);
+    if (cached) return cached;
+
+    // Generate fresh briefing — only happens once per calendar day
     let newsContext = "";
     try {
       const topStories = await getTopStories(4);
@@ -214,7 +228,12 @@ const golfRouter = router({
       ],
     });
     const raw = response?.choices?.[0]?.message?.content;
-    return typeof raw === "string" ? raw : "Morning Jamie. Big week in golf — let's talk.";
+    const content = typeof raw === "string" ? raw : "Morning Jamie. Big week in golf — let's talk.";
+
+    // Cache it — fire and forget, don't block the response
+    cacheBriefing(dateKey, content).catch(() => {});
+
+    return content;
   }),
 });
 
@@ -671,6 +690,68 @@ const triviaRouter = router({
     }),
 });
 
+// ── Analytics router ────────────────────────────────────────────────────────────────────────────────
+
+const analyticsRouter = router({
+  /** Fire-and-forget event log from the frontend */
+  log: publicProcedure
+    .input(z.object({
+      guestId: z.string().optional(),
+      event: z.string().min(1).max(128),
+      page: z.string().max(128).optional(),
+      label: z.string().max(256).optional(),
+      metadata: z.string().max(2000).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await logAnalyticsEvent(input);
+      return { ok: true };
+    }),
+
+  /** Admin dashboard data — event counts, top phrases, hourly activity */
+  dashboard: publicProcedure.query(async () => {
+    const [eventCounts, topPhrases, hourlyRaw] = await Promise.all([
+      getEventCounts(),
+      getTopPhrases(20),
+      getHourlyActivity(),
+    ]);
+
+    // Map event names to human-readable labels
+    const labelMap: Record<string, string> = {
+      page_view: "Page Views",
+      voice_aid_phrase_tap: "Voice Aid — Phrase Tap",
+      voice_aid_typed_speak: "Voice Aid — Typed & Spoke",
+      voice_aid_say_again: "Voice Aid — Say Again",
+      chat_message_sent: "Chat — Message Sent",
+      showdown_pick_made: "Showdown — Pick Made",
+      showdown_pick_changed: "Showdown — Pick Changed",
+      morning_briefing_opened: "Morning Briefing — Opened",
+      morning_briefing_skipped: "Morning Briefing — Skipped",
+      family_drop_played: "Family Drops — Played",
+      family_drop_received: "Family Drops — Received",
+      trivia_answered: "Trivia — Answered",
+      round_logged: "My Game — Round Logged",
+      memory_added: "Memory Keeper — Added",
+    };
+
+    const features = (eventCounts as any[]).map((row: any) => ({
+      event: row.event,
+      label: labelMap[row.event] ?? row.event,
+      total: Number(row.total),
+    })).sort((a: any, b: any) => b.total - a.total);
+
+    const hourly = ((hourlyRaw as any)?.[0] ?? []).map((row: any) => ({
+      hour: Number(row.hour),
+      total: Number(row.total),
+    }));
+
+    return {
+      features,
+      topPhrases: (topPhrases as any[]).map((r: any) => ({ label: r.label ?? "(unknown)", total: Number(r.total) })),
+      hourly,
+    };
+  }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -687,6 +768,7 @@ export const appRouter = router({
   memory: memoryRouter,
   family: familyRouter,
   trivia: triviaRouter,
+  analytics: analyticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

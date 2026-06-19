@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Volume2, VolumeX, Plus, Trash2, Mic } from "lucide-react";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const DEFAULT_PHRASES = [
   // Immediate needs
@@ -47,6 +48,8 @@ function speakLoud(text: string, voiceName?: string) {
 }
 
 export default function VoiceAid() {
+  const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
+  const { track } = useAnalytics(guestId);
   const [typed, setTyped] = useState("");
   const [speaking, setSpeaking] = useState(false);
   const [customPhrases, setCustomPhrases] = useState<string[]>([]);
@@ -57,6 +60,11 @@ export default function VoiceAid() {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [lastSpoken, setLastSpoken] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Track page view on mount
+  useEffect(() => {
+    track("page_view", { page: "/voice-aid" });
+  }, []);
 
   // Load custom phrases from localStorage
   useEffect(() => {
@@ -84,6 +92,8 @@ export default function VoiceAid() {
     if (!toSpeak) return;
     setSpeaking(true);
     setLastSpoken(toSpeak);
+    // Track typed speak (only when called from the Speak button, not from phrase tap)
+    if (!text) track("voice_aid_typed_speak", { label: toSpeak.slice(0, 80) });
     const utterance = new SpeechSynthesisUtterance(toSpeak);
     utterance.rate = 0.82;
     utterance.pitch = 0.9;
@@ -122,6 +132,7 @@ export default function VoiceAid() {
 
   const handlePhraseClick = (phrase: string) => {
     setTyped(phrase);
+    track("voice_aid_phrase_tap", { label: phrase });
     handleSpeak(phrase);
   };
 
@@ -220,7 +231,7 @@ export default function VoiceAid() {
             <span className="text-sm text-muted-foreground">Last said:</span>
             <span className="text-sm font-medium text-foreground flex-1 text-right truncate">{lastSpoken}</span>
             <button
-              onClick={() => handleSpeak(lastSpoken)}
+              onClick={() => { track("voice_aid_say_again", { label: lastSpoken.slice(0, 80) }); handleSpeak(lastSpoken); }}
               className="shrink-0 text-brass hover:text-brass/80 transition-colors"
               title="Say again"
             >

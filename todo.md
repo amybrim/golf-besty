@@ -109,3 +109,20 @@
 - [ ] Quick phrase bank: pre-loaded common phrases Jamie can tap without typing
 - [ ] Custom phrase saving: Jamie can add his own phrases to the quick bank
 - [ ] Voice Aid in sidebar navigation — clearly labeled
+
+## AI Credit Efficiency
+- [ ] Cache Morning Briefing per calendar day — generate once, serve cached version on reload, regenerate only when date changes
+- [ ] Audit all LLM call sites — confirm Showdown pick reasoning, round reactions, and any other invokeLLM calls only generate once per real event, not per page view
+- [ ] Fix any LLM calls that regenerate needlessly
+
+## Usage Analytics
+- [ ] DB schema: analytics_events table (guestId, event, page, metadata, timestamp)
+- [ ] Server: logEvent tRPC mutation (public, fire-and-forget)
+- [ ] Track: page views (all pages)
+- [ ] Track: Voice Aid — typed vs tapped phrases, which phrases used most, Speak presses, Say Again presses
+- [ ] Track: Chat — message count, time of day
+- [ ] Track: Showdown — picks made, tournaments engaged
+- [ ] Track: Morning Briefing — opened vs skipped
+- [ ] Track: Family Drops — messages received, played
+- [ ] Private /admin/analytics dashboard — ranked features most-to-least used, time-of-day patterns, usage trends
+- [ ] Add transparent tracking note for Jamie in the app ("Amy added this so I can see what's helping you most")

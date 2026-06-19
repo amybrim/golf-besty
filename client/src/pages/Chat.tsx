@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useGuestId } from "@/hooks/useGuestId";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
@@ -123,6 +124,7 @@ function SpeakerButton({ text, autoPlay, voiceName }: { text: string; autoPlay: 
 
 export default function Chat() {
   const guestId = useGuestId();
+  const { track } = useAnalytics(guestId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -216,6 +218,7 @@ export default function Chat() {
   const sendMessage = useCallback(
     (text: string) => {
       if (!text.trim() || isLoading) return;
+      track("chat_message_sent");
       const userMsg: Message = { role: "user", content: text };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");

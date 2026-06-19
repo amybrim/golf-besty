@@ -82,12 +82,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Brass divider */}
       <div className="mx-6 brass-divider opacity-30" />
 
-      {/* Clubhouse tagline — no login needed */}
-      <div className="px-6 py-5">
+      {/* Clubhouse tagline + Amy's note */}
+      <div className="px-6 py-5 space-y-3">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-brass animate-pulse" />
           <span className="text-white/40 text-xs font-mono tracking-wider">Jamie's Clubhouse</span>
         </div>
+        <p className="text-white/30 text-[11px] leading-relaxed">
+          Amy added this so I can see what's helping you most and build you more of it. 💛
+        </p>
       </div>
     </nav>
   );

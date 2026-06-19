@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Target, Trophy, CheckCircle, XCircle, Clock, ChevronDown, MessageSquare, Swords, TrendingUp, RefreshCw, Lock } from "lucide-react";
 import { useGuestId } from "@/hooks/useGuestId";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -133,8 +134,11 @@ function TournamentPickCard({
     ? fieldPlayers.filter((p) => p.toLowerCase().includes(playerSearch.toLowerCase()))
     : fieldPlayers;
 
+  const { track } = useAnalytics(guestId);
+
   const makePick = trpc.picks.makeShowdownPick.useMutation({
     onSuccess: (data: any) => {
+      track("showdown_pick_made", { label: tournament.name });
       setSubmitted({ aiPick: data.aiPick, aiReasoning: data.aiReasoning });
       onPickMade();
     },

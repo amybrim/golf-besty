@@ -119,3 +119,34 @@ export const familyDrops = mysqlTable("family_drops", {
 
 export type FamilyDrop = typeof familyDrops.$inferSelect;
 export type InsertFamilyDrop = typeof familyDrops.$inferInsert;
+
+/**
+ * Morning Briefing cache — Wally's daily note to Jamie, generated once per calendar day.
+ * Key is the ISO date string e.g. "2026-06-18". Serve cached version on every reload.
+ */
+export const morningBriefingCache = mysqlTable("morning_briefing_cache", {
+  id: int("id").autoincrement().primaryKey(),
+  dateKey: varchar("dateKey", { length: 10 }).notNull().unique(), // "YYYY-MM-DD"
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MorningBriefingCache = typeof morningBriefingCache.$inferSelect;
+export type InsertMorningBriefingCache = typeof morningBriefingCache.$inferInsert;
+
+/**
+ * Analytics events — tracks how Jamie uses Wally.
+ * Fire-and-forget from the frontend. Used to build the /admin/analytics dashboard.
+ */
+export const analyticsEvents = mysqlTable("analytics_events", {
+  id: int("id").autoincrement().primaryKey(),
+  guestId: varchar("guestId", { length: 64 }),
+  event: varchar("event", { length: 128 }).notNull(), // e.g. "page_view", "voice_aid_phrase_tap", "chat_message_sent"
+  page: varchar("page", { length: 128 }),             // e.g. "/voice-aid", "/showdown"
+  label: varchar("label", { length: 256 }),           // e.g. phrase text, feature name
+  metadata: text("metadata"),                         // JSON string for extra data
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;

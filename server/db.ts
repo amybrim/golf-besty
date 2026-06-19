@@ -1,4 +1,4 @@
-import { eq, desc, and, or } from "drizzle-orm";
+import { eq, desc, and, or, sql, count, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -8,11 +8,14 @@ import {
   rounds,
   wallyMemories,
   familyDrops,
+  morningBriefingCache,
+  analyticsEvents,
   InsertPick,
   InsertChatMessage,
   InsertRound,
   InsertWallyMemory,
   InsertFamilyDrop,
+  InsertAnalyticsEvent,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -232,4 +235,83 @@ export async function markFamilyDropRead(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.update(familyDrops).set({ isRead: true }).where(eq(familyDrops.id, id));
+}
+
+// ── Morning Briefing Cache ────────────────────────────────────────────────────
+
+/** Returns cached briefing for today's date key, or null if not cached yet */
+export async function getCachedBriefing(dateKey: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(morningBriefingCache).where(eq(morningBriefingCache.dateKey, dateKey)).limit(1);
+  return rows[0]?.content ?? null;
+}
+
+/** Store today's briefing in cache */
+export async function cacheBriefing(dateKey: string, content: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(morningBriefingCache).values({ dateKey, content });
+  } catch {
+    // Unique constraint violation means it was already cached — ignore
+  }
+}
+
+// ── Analytics Events ──────────────────────────────────────────────────────────
+
+/** Fire-and-forget event logging — never throws */
+export async function logAnalyticsEvent(event: InsertAnalyticsEvent): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(analyticsEvents).values(event);
+  } catch { /* non-critical — never block the user */ }
+}
+
+/** Get all analytics events for the dashboard */
+export async function getAnalyticsEvents(since?: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  if (since) {
+    return db.select().from(analyticsEvents).where(gte(analyticsEvents.createdAt, since)).orderBy(desc(analyticsEvents.createdAt));
+  }
+  return db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt));
+}
+
+/** Get event counts grouped by event name */
+export async function getEventCounts(since?: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  const query = db
+    .select({ event: analyticsEvents.event, total: count() })
+    .from(analyticsEvents)
+    .groupBy(analyticsEvents.event)
+    .orderBy(desc(count()));
+  return query;
+}
+
+/** Get top phrase labels for Voice Aid */
+export async function getTopPhrases(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ label: analyticsEvents.label, total: count() })
+    .from(analyticsEvents)
+    .where(eq(analyticsEvents.event, "voice_aid_phrase_tap"))
+    .groupBy(analyticsEvents.label)
+    .orderBy(desc(count()))
+    .limit(limit);
+}
+
+/** Get hourly activity distribution */
+export async function getHourlyActivity() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.execute(sql`
+    SELECT HOUR(createdAt) as hour, COUNT(*) as total
+    FROM analytics_events
+    GROUP BY HOUR(createdAt)
+    ORDER BY hour
+  `);
 }
