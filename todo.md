@@ -126,3 +126,11 @@
 - [ ] Track: Family Drops — messages received, played
 - [ ] Private /admin/analytics dashboard — ranked features most-to-least used, time-of-day patterns, usage trends
 - [ ] Add transparent tracking note for Jamie in the app ("Amy added this so I can see what's helping you most")
+
+## PWA / Home Screen Install
+- [ ] Create PWA manifest.json with name, icons, start_url pointing to /voice-aid
+- [ ] Generate Wally app icons (192x192 and 512x512) for home screen
+- [ ] Add service worker for offline phrase bank caching
+- [ ] Wire manifest and theme-color meta tags into index.html
+- [ ] Optimize Voice Aid page with large above-the-fold Speak button
+- [ ] Test install flow on iPhone (Safari) and Samsung (Chrome)

@@ -1,0 +1,27 @@
+{
+  "name": "Wally — Jamie's Golf Bestie",
+  "short_name": "Wally",
+  "description": "Jamie's personal golf best friend — Voice Aid, morning briefing, and Wally vs Jamie showdown.",
+  "start_url": "/voice-aid",
+  "display": "standalone",
+  "background_color": "#1B3A2D",
+  "theme_color": "#1B3A2D",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663126464465/Yuakjto8YhmBzZeKupXC7K/wally-icon-512-UuLo3xzMor4oC48AUPyeEN.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663126464465/Yuakjto8YhmBzZeKupXC7K/wally-icon-512-UuLo3xzMor4oC48AUPyeEN.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "sports", "health"],
+  "lang": "en-US"
+}

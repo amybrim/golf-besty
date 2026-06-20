@@ -182,6 +182,29 @@ export default function VoiceAid() {
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
+        {/* PWA hero — big tap target for home screen launch */}
+        {typed.trim() && (
+          <button
+            onClick={() => handleSpeak()}
+            disabled={speaking}
+            className="w-full bg-brass hover:bg-brass/90 text-green-950 font-black text-3xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+            style={{ minHeight: '88px' }}
+          >
+            <Volume2 size={32} />
+            SPEAK
+          </button>
+        )}
+        {speaking && (
+          <button
+            onClick={handleStop}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-3xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+            style={{ minHeight: '88px' }}
+          >
+            <VolumeX size={32} />
+            STOP
+          </button>
+        )}
+
         {/* Main type-to-speak area */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
           <div className="p-4">
