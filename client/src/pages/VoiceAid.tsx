@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Volume2, VolumeX, Plus, Trash2, Mic } from "lucide-react";
+import { Volume2, VolumeX, Plus, Trash2, Gauge, Zap } from "lucide-react";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
 const DEFAULT_PHRASES = [
@@ -14,38 +14,8 @@ const DEFAULT_PHRASES = [
 ];
 
 const STORAGE_KEY = "wally_voice_aid_custom";
-
-function speakLoud(text: string, voiceName?: string) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.82;
-  utterance.pitch = 0.9;
-  utterance.volume = 1.0;
-
-  const setVoice = () => {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return;
-    if (voiceName) {
-      const picked = voices.find((v) => v.name === voiceName);
-      if (picked) { utterance.voice = picked; return; }
-    }
-    const priority = ["Daniel", "Arthur", "Gordon", "Google UK English Male", "Google US English", "Microsoft Guy", "Microsoft David"];
-    const enVoices = voices.filter((v) => v.lang.startsWith("en"));
-    let chosen: SpeechSynthesisVoice | undefined;
-    for (const name of priority) {
-      chosen = enVoices.find((v) => v.name.includes(name));
-      if (chosen) break;
-    }
-    if (!chosen) chosen = enVoices.find((v) => !v.name.toLowerCase().includes("female")) ?? enVoices[0];
-    if (chosen) utterance.voice = chosen;
-  };
-
-  if (window.speechSynthesis.getVoices().length > 0) setVoice();
-  else window.speechSynthesis.onvoiceschanged = () => { setVoice(); window.speechSynthesis.onvoiceschanged = null; };
-
-  window.speechSynthesis.speak(utterance);
-}
+const SPEED_KEY = "wally_voice_aid_speed";
+const LOUD_KEY = "wally_voice_aid_loud";
 
 export default function VoiceAid() {
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
@@ -59,6 +29,14 @@ export default function VoiceAid() {
   const [selectedVoice, setSelectedVoice] = useState<string | undefined>(undefined);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [lastSpoken, setLastSpoken] = useState<string>("");
+  // Speed: 0.6 = slow, 0.82 = normal, 1.1 = fast
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem(SPEED_KEY) ?? "0.82"); } catch { return 0.82; }
+  });
+  // Loud mode: boosts volume to max and uses a louder pitch
+  const [loudMode, setLoudMode] = useState<boolean>(() => {
+    try { return localStorage.getItem(LOUD_KEY) === "true"; } catch { return false; }
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Track page view on mount
@@ -87,19 +65,21 @@ export default function VoiceAid() {
     return () => { clearTimeout(t); window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
-  const handleSpeak = (text?: string) => {
-    const toSpeak = (text ?? typed).trim();
-    if (!toSpeak) return;
-    setSpeaking(true);
-    setLastSpoken(toSpeak);
-    // Track typed speak (only when called from the Speak button, not from phrase tap)
-    if (!text) track("voice_aid_typed_speak", { label: toSpeak.slice(0, 80) });
-    const utterance = new SpeechSynthesisUtterance(toSpeak);
-    utterance.rate = 0.82;
-    utterance.pitch = 0.9;
-    utterance.volume = 1.0;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+  // Persist speed setting
+  useEffect(() => {
+    localStorage.setItem(SPEED_KEY, speechRate.toString());
+  }, [speechRate]);
+
+  // Persist loud mode setting
+  useEffect(() => {
+    localStorage.setItem(LOUD_KEY, loudMode.toString());
+  }, [loudMode]);
+
+  const buildUtterance = (text: string): SpeechSynthesisUtterance => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speechRate;
+    utterance.pitch = loudMode ? 1.05 : 0.9;
+    utterance.volume = 1.0; // Always max volume
 
     const setVoice = () => {
       const voices = window.speechSynthesis.getVoices();
@@ -119,9 +99,23 @@ export default function VoiceAid() {
       if (chosen) utterance.voice = chosen;
     };
 
-    window.speechSynthesis.cancel();
     if (window.speechSynthesis.getVoices().length > 0) setVoice();
     else window.speechSynthesis.onvoiceschanged = () => { setVoice(); window.speechSynthesis.onvoiceschanged = null; };
+
+    return utterance;
+  };
+
+  const handleSpeak = (text?: string) => {
+    const toSpeak = (text ?? typed).trim();
+    if (!toSpeak) return;
+    setSpeaking(true);
+    setLastSpoken(toSpeak);
+    if (!text) track("voice_aid_typed_speak", { label: toSpeak.slice(0, 80) });
+
+    window.speechSynthesis.cancel();
+    const utterance = buildUtterance(toSpeak);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
     window.speechSynthesis.speak(utterance);
   };
 
@@ -153,12 +147,14 @@ export default function VoiceAid() {
 
   const currentCategory = DEFAULT_PHRASES.find((c) => c.category === activeCategory);
 
+  const speedLabel = speechRate <= 0.65 ? "Slow" : speechRate <= 0.9 ? "Normal" : "Fast";
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <div className="bg-green-900 border-b border-brass/30 px-4 py-4">
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-cream font-playfair text-2xl font-bold">Voice Aid</h1>
               <p className="text-cream/60 text-sm mt-0.5">Type or tap — Wally speaks for you</p>
@@ -177,17 +173,49 @@ export default function VoiceAid() {
               </select>
             )}
           </div>
+
+          {/* Speed + Loud controls in header */}
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/10">
+            {/* Speed slider */}
+            <div className="flex items-center gap-2 flex-1">
+              <Gauge size={13} className="text-cream/50 shrink-0" />
+              <span className="text-cream/50 text-xs font-mono shrink-0">Speed:</span>
+              <input
+                type="range"
+                min={0.5}
+                max={1.3}
+                step={0.05}
+                value={speechRate}
+                onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                className="flex-1 h-1.5 accent-brass cursor-pointer"
+              />
+              <span className="text-cream/70 text-xs font-mono w-12 text-right shrink-0">{speedLabel}</span>
+            </div>
+
+            {/* Loud mode toggle */}
+            <button
+              onClick={() => setLoudMode((v) => !v)}
+              title={loudMode ? "Loud mode ON — tap to turn off" : "Tap for louder speech (noisy rooms)"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all shrink-0 ${
+                loudMode
+                  ? "bg-brass text-green-950 border-brass font-bold"
+                  : "border-white/20 text-cream/50 hover:border-brass/40 hover:text-cream/80"
+              }`}
+            >
+              <Zap size={12} />
+              {loudMode ? "LOUD ON" : "Louder"}
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
         {/* PWA hero — big tap target for home screen launch */}
-        {typed.trim() && (
+        {typed.trim() && !speaking && (
           <button
             onClick={() => handleSpeak()}
-            disabled={speaking}
-            className="w-full bg-brass hover:bg-brass/90 text-green-950 font-black text-3xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full bg-brass hover:bg-brass/90 text-green-950 font-black text-3xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
             style={{ minHeight: '88px' }}
           >
             <Volume2 size={32} />
@@ -368,6 +396,7 @@ export default function VoiceAid() {
         {/* Note */}
         <p className="text-xs text-muted-foreground text-center pb-4">
           Tap any phrase to speak it immediately. Type anything in the box above and tap Speak.
+          <br />Use <strong>Louder</strong> in noisy rooms. Speed slider adjusts how fast Wally speaks.
           <br />Your custom phrases are saved on this device.
         </p>
       </div>

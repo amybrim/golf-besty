@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { Newspaper, ExternalLink, RefreshCw, Flame, Tag } from "lucide-react";
+import { Newspaper, ExternalLink, RefreshCw, Flame, Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const ALL_TAGS = ["All", "Drama", "LPGA", "Major", "Injury", "Comeback", "Rivalry", "PGA", "Off-Course"];
 
@@ -36,8 +37,54 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+function SpeakButton({ text, storyId }: { text: string; storyId: string }) {
+  const [speaking, setSpeaking] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const handleSpeak = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (speaking) {
+        window.speechSynthesis.cancel();
+        setSpeaking(false);
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+      setSpeaking(true);
+    },
+    [speaking, text]
+  );
+
+  return (
+    <button
+      onClick={handleSpeak}
+      title={speaking ? "Stop reading" : "Read this story aloud"}
+      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-all flex-shrink-0 ${
+        speaking
+          ? "bg-brass/10 border-brass/40 text-brass"
+          : "border-border text-muted-foreground hover:border-brass/40 hover:text-brass"
+      }`}
+    >
+      {speaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
+      {speaking ? "Stop" : "Read"}
+    </button>
+  );
+}
+
 export default function Feed() {
   const [activeTag, setActiveTag] = useState("All");
+  const { track } = useAnalytics();
   const { data: news, isLoading, refetch, isFetching } = trpc.golf.news.useQuery(
     { tag: activeTag, limit: 40 },
     { refetchInterval: 10 * 60 * 1000 }
@@ -108,15 +155,12 @@ export default function Feed() {
       {news && news.length > 0 && (
         <div className="space-y-3">
           {news.map((item, i) => (
-            <motion.a
+            <motion.div
               key={item.id}
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.03, 0.3) }}
-              className="group block bg-card border border-border rounded-xl p-5 hover:border-brass/40 hover:shadow-sm transition-all"
+              className="group bg-card border border-border rounded-xl p-5 hover:border-brass/40 hover:shadow-sm transition-all"
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 min-w-0">
@@ -142,9 +186,21 @@ export default function Feed() {
                     {item.tags.map((tag) => (
                       <TagBadge key={tag} tag={tag} />
                     ))}
-                    <span className="ml-auto flex items-center gap-1 text-muted-foreground/50 group-hover:text-brass transition-colors text-xs">
-                      Read <ExternalLink size={11} />
-                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <SpeakButton
+                        storyId={item.id}
+                        text={`${item.title}. ${item.summary ?? ""}`}
+                      />
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => track("page_view", { page: "/feed", label: item.title })}
+                        className="flex items-center gap-1 text-muted-foreground/50 hover:text-brass transition-colors text-xs"
+                      >
+                        Read <ExternalLink size={11} />
+                      </a>
+                    </div>
                   </div>
                 </div>
                 {item.imageUrl && (
@@ -158,7 +214,7 @@ export default function Feed() {
                   </div>
                 )}
               </div>
-            </motion.a>
+            </motion.div>
           ))}
         </div>
       )}

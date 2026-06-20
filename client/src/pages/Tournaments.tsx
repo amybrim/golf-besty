@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Calendar, MapPin, ChevronDown, ChevronUp, Target, Zap } from "lucide-react";
+import { Trophy, Calendar, MapPin, ChevronDown, ChevronUp, Target, Zap, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 
@@ -30,10 +30,33 @@ function StatusBadge({ status }: { status: string }) {
 function LeaderboardPanel({ eventId, tour }: { eventId?: string; tour?: string }) {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
+  const [narrating, setNarrating] = useState(false);
   const { data: leaderboard, isLoading } = trpc.golf.leaderboard.useQuery(
     { eventId, tour },
     { refetchInterval: 60000 }
   );
+
+  const narrateLeaderboard = useCallback(() => {
+    if (!leaderboard || leaderboard.length === 0) return;
+    if (narrating) {
+      window.speechSynthesis.cancel();
+      setNarrating(false);
+      return;
+    }
+    const top5 = leaderboard.slice(0, 5);
+    const text = `Here's the top 5. ` +
+      top5.map((e, i) => `${i + 1}: ${e.playerName}, ${e.totalScore} total`).join('. ') +
+      `. That's your live leaderboard.`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.88;
+    utterance.pitch = 0.9;
+    utterance.volume = 1.0;
+    utterance.onend = () => setNarrating(false);
+    utterance.onerror = () => setNarrating(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    setNarrating(true);
+  }, [leaderboard, narrating]);
 
   if (isLoading) {
     return (
@@ -79,6 +102,21 @@ function LeaderboardPanel({ eventId, tour }: { eventId?: string; tour?: string }
 
   return (
     <div className="mt-4">
+      {/* Narrate top 5 button */}
+      {leaderboard && leaderboard.length > 0 && (
+        <button
+          onClick={narrateLeaderboard}
+          className={`flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all ${
+            narrating
+              ? "bg-brass/10 border-brass/40 text-brass"
+              : "border-border text-muted-foreground hover:border-brass/40 hover:text-brass"
+          }`}
+        >
+          {narrating ? <VolumeX size={13} /> : <Volume2 size={13} />}
+          {narrating ? "Stop narrating" : "Read top 5 aloud"}
+        </button>
+      )}
+
       {/* Player search input */}
       <div className="relative mb-4">
         <input

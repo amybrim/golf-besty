@@ -166,7 +166,23 @@ const golfRouter = router({
         // News context is optional — don't fail chat if it errors
       }
 
-      const systemWithContext = CADDIE_SYSTEM + newsContext;
+      // Pull Jamie's saved memories so Wally can reference them naturally
+      let memoriesContext = "";
+      try {
+        const memories = await getUserMemories(userId, input.guestId);
+        if (memories.length > 0) {
+          memoriesContext =
+            "\n\nJAMIE'S SAVED MEMORIES & NOTES (reference these naturally when relevant — don't force it, but if he mentions a course, player, or moment you've stored, bring it up warmly):\n" +
+            memories
+              .slice(0, 10) // Cap at 10 most recent to keep context lean
+              .map((m) => `- ${m.title}: ${m.content}`)
+              .join("\n");
+        }
+      } catch {
+        // Memories context is optional
+      }
+
+      const systemWithContext = CADDIE_SYSTEM + newsContext + memoriesContext;
 
       const messages = [
         { role: "system" as const, content: systemWithContext },

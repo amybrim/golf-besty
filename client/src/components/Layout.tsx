@@ -12,6 +12,7 @@ import {
   HelpCircle,
   Heart,
   Volume2,
+  BarChart2,
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -91,6 +92,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <p className="text-white/30 text-[11px] leading-relaxed">
           Amy added this so I can see what's helping you most and build you more of it. 💛
         </p>
+        <Link
+          href="/admin/analytics"
+          onClick={() => setMobileOpen(false)}
+          className="flex items-center gap-2 mt-2 text-white/20 hover:text-white/50 transition-colors group"
+        >
+          <BarChart2 size={12} className="group-hover:text-brass/60" />
+          <span className="text-[10px] font-mono tracking-wider">Amy's Dashboard</span>
+        </Link>
       </div>
     </nav>
   );
