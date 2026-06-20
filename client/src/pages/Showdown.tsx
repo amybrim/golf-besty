@@ -116,8 +116,6 @@ function TournamentPickCard({
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [jamieReasoning, setJamieReasoning] = useState("");
   const [submitted, setSubmitted] = useState<{ aiPick: string; aiReasoning: string } | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
   const isLive = tournament.status === "in_progress";
   const alreadyPicked = !!existingPick;
 
@@ -154,7 +152,7 @@ function TournamentPickCard({
   });
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl">
       {/* Card header — always visible */}
       <button
         onClick={() => !alreadyPicked && setOpen((v) => !v)}
@@ -227,7 +225,7 @@ function TournamentPickCard({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-border"
+            className="border-t border-border"
           >
             <div className="px-5 py-5 space-y-4">
               {submitted ? (
@@ -292,56 +290,51 @@ function TournamentPickCard({
                       )}
                     </div>
                   ) : (
-                      <div className="relative">
-                        <button
-                          onClick={() => setDropdownOpen((v) => !v)}
-                          className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-brass/40 transition-all flex items-center justify-between"
-                        >
-                          <span className={selectedPlayer ? "text-foreground font-medium" : "text-muted-foreground"}>
-                            {selectedPlayer || `Pick from ${fieldPlayers.length} players...`}
-                          </span>
-                          <ChevronDown size={16} className="text-muted-foreground shrink-0" />
-                        </button>
-                        <AnimatePresence>
-                          {dropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              className="absolute top-full left-0 right-0 z-30 mt-1 bg-card border border-border rounded-xl shadow-xl"
+                      <div className="space-y-2">
+                        {/* Selected player display */}
+                        {selectedPlayer && (
+                          <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-brass/10 border border-brass/30">
+                            <span className="font-medium text-foreground text-sm">{selectedPlayer}</span>
+                            <button
+                              onClick={() => setSelectedPlayer("")}
+                              className="text-muted-foreground hover:text-foreground text-xs font-mono transition-colors"
                             >
-                              <div className="p-2 border-b border-border bg-card sticky top-0 rounded-t-xl">
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={playerSearch}
-                                  placeholder="Search player..."
-                                  onChange={(e) => setPlayerSearch(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-lg bg-muted text-foreground text-sm placeholder:text-muted-foreground focus:outline-none"
-                                />
-                              </div>
-                              <div className="max-h-52 overflow-y-auto">
+                              Change
+                            </button>
+                          </div>
+                        )}
+                        {/* Inline search + player list */}
+                        {!selectedPlayer && (
+                          <>
+                            <input
+                              type="text"
+                              value={playerSearch}
+                              placeholder={`Search from ${fieldPlayers.length} players...`}
+                              onChange={(e) => setPlayerSearch(e.target.value)}
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-brass/60 transition-colors"
+                            />
+                            <div className="rounded-lg border border-border overflow-hidden">
+                              <div className="max-h-56 overflow-y-auto">
                                 {filtered.length === 0 ? (
-                                  <div className="px-4 py-3 text-sm text-muted-foreground">No players found</div>
+                                  <div className="px-4 py-3 text-sm text-muted-foreground font-mono">No players found</div>
                                 ) : (
                                   filtered.map((player: string) => (
                                     <button
                                       key={player}
                                       onClick={() => {
                                         setSelectedPlayer(player);
-                                        setDropdownOpen(false);
                                         setPlayerSearch("");
                                       }}
-                                      className="w-full text-left px-4 py-2.5 hover:bg-muted/50 transition-colors text-sm text-foreground border-b border-border/50 last:border-0"
+                                      className="w-full text-left px-4 py-2.5 hover:bg-muted/50 active:bg-muted transition-colors text-sm text-foreground border-b border-border/50 last:border-0"
                                     >
                                       {player}
                                     </button>
                                   ))
                                 )}
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
