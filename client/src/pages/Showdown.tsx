@@ -121,13 +121,19 @@ function TournamentPickCard({
   const isLive = tournament.status === "in_progress";
   const alreadyPicked = !!existingPick;
 
-  const { data: liveLeaderboard } = trpc.golf.leaderboard.useQuery(
+  // Always fetch field so it's ready when card opens — staleTime keeps it cached
+  const { data: liveLeaderboard, isLoading: fieldLoading, isError: fieldError } = trpc.golf.leaderboard.useQuery(
     { eventId: tournament.id, tour: tournament.tour === "LPGA" ? "LPGA" : "PGA" },
-    { enabled: open && !alreadyPicked }
+    { enabled: !alreadyPicked, staleTime: 5 * 60 * 1000, retry: 2 }
   );
 
-  const fieldPlayers: string[] = liveLeaderboard && liveLeaderboard.length > 0
-    ? liveLeaderboard.map((p: any) => p.playerName)
+  // Players sorted by leaderboard position (ranking order)
+  const fieldPlayers: string[] = Array.isArray(liveLeaderboard) && liveLeaderboard.length > 0
+    ? liveLeaderboard
+        .slice()
+        .sort((a: any, b: any) => (a.position ?? 999) - (b.position ?? 999))
+        .map((p: any) => p.playerName ?? p.name ?? "")
+        .filter(Boolean)
     : [];
 
   const filtered = playerSearch
@@ -265,10 +271,14 @@ function TournamentPickCard({
                     <label className="text-muted-foreground text-xs uppercase tracking-wider font-mono block mb-2">
                       Who's winning it?
                     </label>
-                  {fieldPlayers.length === 0 && !liveLeaderboard ? (
+                  {fieldLoading ? (
                     <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border text-muted-foreground text-sm">
                       <div className="w-3 h-3 rounded-full border-2 border-brass border-t-transparent animate-spin" />
                       Loading confirmed field...
+                    </div>
+                  ) : fieldError ? (
+                    <div className="px-4 py-3 rounded-lg border border-border bg-muted/30">
+                      <p className="text-muted-foreground text-sm font-mono">Could not load field — tap to retry or check back shortly.</p>
                     </div>
                   ) : fieldPlayers.length === 0 ? (
                     <div className="px-4 py-3 rounded-lg border border-border bg-muted/30">
