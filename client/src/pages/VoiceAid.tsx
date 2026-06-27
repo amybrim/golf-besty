@@ -5,7 +5,7 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 // ── Jamie's Medical ID ───────────────────────────────────────────────────────
 
 const JAMIE_MEDICAL_ID = {
-  name: "Jamie Linskey",
+  name: "Jamie Brimicombe",
   dob: "June 6, 1966",
   address: "29A Uncus Road, Gloucester, MA 01930",
   condition: "Laryngectomy / Tracheotomy — cannot speak. Communicates via device.",
@@ -14,11 +14,11 @@ const JAMIE_MEDICAL_ID = {
   hospital: "Addison Gilbert Hospital, Gloucester — or Mass Eye and Ear, Boston",
   contacts: [
     { name: "Amy Brimicombe — Sister", phone: "781-808-8061" },
-    { name: "Deb Linskey — Mother", phone: "978-223-8538" },
+    { name: "Deb Brimicombe — Mother", phone: "978-223-8538" },
   ],
 };
 
-const JAMIE_911_STATEMENT = `This is a medical emergency. My name is Jamie Linskey. I cannot speak — I have had a laryngectomy and tracheotomy. I need emergency assistance immediately. My address is 29A Uncus Road, Gloucester, Massachusetts, 01930. My emergency contacts are my sister Amy Brimicombe at 7 8 1, 8 0 8, 8 0 6 1, and my mother Deb Linskey at 9 7 8, 2 2 3, 8 5 3 8. My doctor is Doctor Feng at Mass Eye and Ear in Boston. I have no known allergies. Please send help now.`;
+const JAMIE_911_STATEMENT = `This is a medical emergency. My name is Jamie Brimicombe. I cannot speak — I have had a laryngectomy and tracheotomy. I need emergency assistance immediately. My address is 29A Uncus Road, Gloucester, Massachusetts, 01930. My emergency contacts are my sister Amy Brimicombe at 7 8 1, 8 0 8, 8 0 6 1, and my mother Deb Brimicombe at 9 7 8, 2 2 3, 8 5 3 8. My doctor is Doctor Feng at Mass Eye and Ear in Boston. I have no known allergies. Please send help now.`;
 
 // ── Situation categories with real-world AAC phrases ─────────────────────────
 
