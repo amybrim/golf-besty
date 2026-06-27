@@ -391,12 +391,13 @@ export default function VoiceAid() {
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <button
               onClick={() => { setView("home"); setActiveSituation(null); }}
-              className="flex items-center gap-1.5 text-cream/70 hover:text-cream transition-colors text-sm font-mono"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 active:scale-95 text-cream font-bold px-4 py-2.5 rounded-xl transition-all text-base"
+              style={{ minWidth: "80px" }}
             >
-              <ChevronLeft size={18} /> Back
+              <ChevronLeft size={20} /> Back
             </button>
             <span className="text-cream font-playfair text-xl font-bold flex-1 text-center">{currentSituation.label}</span>
-            <div className="w-16" />
+            <div className="w-20" />
           </div>
         </div>
 
@@ -439,6 +440,15 @@ export default function VoiceAid() {
               <VolumeX size={28} /> STOP
             </button>
           )}
+
+          {/* Back button at bottom — big tap target */}
+          <button
+            onClick={() => { setView("home"); setActiveSituation(null); }}
+            className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 active:scale-95 text-foreground font-bold py-5 rounded-2xl transition-all text-xl mt-2"
+            style={{ minHeight: "64px" }}
+          >
+            <ChevronLeft size={24} /> Back to All Categories
+          </button>
         </div>
       </div>
     );
