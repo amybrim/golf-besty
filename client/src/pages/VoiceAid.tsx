@@ -2,23 +2,42 @@ import { useState, useEffect, useRef } from "react";
 import { Volume2, VolumeX, Plus, Trash2, Gauge, Zap, ChevronLeft } from "lucide-react";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
+// ── Jamie's Medical ID ───────────────────────────────────────────────────────
+
+const JAMIE_MEDICAL_ID = {
+  name: "Jamie Linskey",
+  dob: "June 6, 1966",
+  address: "29A Uncus Road, Gloucester, MA 01930",
+  condition: "Laryngectomy / Tracheotomy — cannot speak. Communicates via device.",
+  allergies: "No known allergies",
+  doctor: "Dr. Feng — Mass Eye and Ear, Boston (Cancer / ENT)",
+  hospital: "Addison Gilbert Hospital, Gloucester — or Mass Eye and Ear, Boston",
+  contacts: [
+    { name: "Amy Brimicombe (Sister)", phone: "781-808-8061" },
+    { name: "Deb Linskey (Mom)", phone: "978-223-8538" },
+  ],
+};
+
+const JAMIE_911_STATEMENT = `This is a medical emergency. My name is Jamie Linskey. I cannot speak — I have had a laryngectomy and tracheotomy. I need emergency assistance immediately. My address is 29A Uncus Road, Gloucester, Massachusetts, 01930. My emergency contacts are Amy Brimicombe at 7 8 1, 8 0 8, 8 0 6 1, and Deb Linskey at 9 7 8, 2 2 3, 8 5 3 8. My doctor is Doctor Feng at Mass Eye and Ear in Boston. I have no known allergies. Please send help now.`;
+
 // ── Situation categories with real-world AAC phrases ─────────────────────────
 
 const SITUATIONS = [
   {
     id: "emergency",
-    label: "🚨 Emergency",
+    label: "🚨 Urgent Help",
     color: "bg-red-600 text-white border-red-700",
     activeColor: "bg-red-600 text-white",
     phrases: [
-      "Call 911 now",
-      "I need an ambulance",
-      "I cannot breathe",
-      "I am having a medical emergency",
-      "Call my doctor immediately",
       "I need help — this is urgent",
-      "Something is very wrong",
+      "I am having trouble breathing",
+      "My airway feels blocked",
+      "I need suctioning now — it is urgent",
+      "Something is wrong with my stoma",
+      "I cannot get air — help me now",
+      "Call my doctor immediately",
       "Please do not leave me alone",
+      "I need an ambulance",
     ],
   },
   {
@@ -175,7 +194,8 @@ export default function VoiceAid() {
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
   const { track } = useAnalytics(guestId);
 
-  const [view, setView] = useState<"home" | "type" | "category">("home");
+  const [view, setView] = useState<"home" | "type" | "category" | "medical-id">("home");
+  const [speaking911, setSpeaking911] = useState(false);
   const [activeSituation, setActiveSituation] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [speaking, setSpeaking] = useState(false);
@@ -258,7 +278,20 @@ export default function VoiceAid() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const stopSpeaking = () => { window.speechSynthesis.cancel(); setSpeaking(false); };
+  const stopSpeaking = () => { window.speechSynthesis.cancel(); setSpeaking(false); setSpeaking911(false); };
+
+  const speak911 = () => {
+    setSpeaking911(true);
+    setSpeaking(true);
+    setLastSpoken("911 Emergency Statement");
+    track("voice_aid_911_statement", { label: "911" });
+    window.speechSynthesis.cancel();
+    const utterance = buildUtterance(JAMIE_911_STATEMENT);
+    utterance.rate = 0.75; // Slow and clear for dispatcher
+    utterance.onend = () => { setSpeaking(false); setSpeaking911(false); };
+    utterance.onerror = () => { setSpeaking(false); setSpeaking911(false); };
+    window.speechSynthesis.speak(utterance);
+  };
 
   const handleSavePhrase = () => {
     if (!newPhrase.trim()) return;
@@ -285,7 +318,7 @@ export default function VoiceAid() {
       className="w-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xl py-5 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 mb-4"
       style={{ minHeight: "72px" }}
     >
-      🚨 EMERGENCY
+      🚨 URGENT HELP
     </button>
   );
 
@@ -514,6 +547,92 @@ export default function VoiceAid() {
     );
   }
 
+  // ── VIEW: Medical ID ─────────────────────────────────────────────────────
+  if (view === "medical-id") {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="bg-green-900 border-b border-brass/30 px-4 py-4 sticky top-0 z-10">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <button onClick={() => setView("home")} className="flex items-center gap-1.5 text-cream/70 hover:text-cream transition-colors text-sm font-mono">
+              <ChevronLeft size={18} /> Back
+            </button>
+            <span className="text-cream font-playfair text-xl font-bold flex-1 text-center">Medical ID</span>
+            <div className="w-16" />
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
+          {/* 911 Speak button */}
+          {speaking911 ? (
+            <button
+              onClick={stopSpeaking}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-2xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+              style={{ minHeight: "80px" }}
+            >
+              <VolumeX size={28} /> STOP READING
+            </button>
+          ) : (
+            <button
+              onClick={speak911}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-2xl py-6 rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+              style={{ minHeight: "80px" }}
+            >
+              <Volume2 size={28} /> READ TO 911 DISPATCHER
+            </button>
+          )}
+          <p className="text-xs text-muted-foreground text-center font-mono -mt-2">Tap above — Wally reads your full medical situation aloud to the dispatcher</p>
+
+          {/* Medical ID Card */}
+          <div className="bg-card border-2 border-brass/40 rounded-2xl overflow-hidden shadow-lg">
+            <div className="bg-green-900 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-brass/20 border-2 border-brass flex items-center justify-center text-2xl">🏥</div>
+                <div>
+                  <div className="text-cream font-playfair text-xl font-bold">{JAMIE_MEDICAL_ID.name}</div>
+                  <div className="text-cream/60 text-sm font-mono">DOB: {JAMIE_MEDICAL_ID.dob}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-border">
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-1">Condition</div>
+                <div className="text-foreground font-semibold text-base leading-snug">{JAMIE_MEDICAL_ID.condition}</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-1">Address</div>
+                <div className="text-foreground font-medium">{JAMIE_MEDICAL_ID.address}</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-1">Allergies</div>
+                <div className="text-green-600 font-semibold">{JAMIE_MEDICAL_ID.allergies}</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-1">Doctor / Hospital</div>
+                <div className="text-foreground font-medium">{JAMIE_MEDICAL_ID.doctor}</div>
+                <div className="text-muted-foreground text-sm mt-0.5">{JAMIE_MEDICAL_ID.hospital}</div>
+              </div>
+              <div className="px-5 py-4">
+                <div className="text-xs text-muted-foreground font-mono uppercase tracking-wider mb-2">Emergency Contacts</div>
+                {JAMIE_MEDICAL_ID.contacts.map((c) => (
+                  <div key={c.name} className="flex items-center justify-between py-1.5">
+                    <div className="text-foreground font-medium text-sm">{c.name}</div>
+                    <a href={`tel:${c.phone.replace(/-/g, "")}`} className="text-brass font-mono text-sm hover:underline">{c.phone}</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center pb-4">
+            Show this screen to any doctor, nurse, or first responder.<br />
+            Tap <strong>Read to 911 Dispatcher</strong> to have Wally speak your full medical statement.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // ── VIEW: Home — situation grid ───────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -526,13 +645,22 @@ export default function VoiceAid() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
-        {/* Emergency — always first, full width, red */}
+        {/* Urgent Help — always first, full width, red */}
         <button
           onClick={() => { setActiveSituation("emergency"); setView("category"); }}
           className="w-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-2xl py-6 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3"
           style={{ minHeight: "80px" }}
         >
-          🚨 EMERGENCY
+          🚨 URGENT HELP
+        </button>
+
+        {/* Medical ID */}
+        <button
+          onClick={() => setView("medical-id")}
+          className="w-full bg-green-900 hover:bg-green-800 active:scale-95 text-cream font-black text-2xl py-6 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3"
+          style={{ minHeight: "80px" }}
+        >
+          🏥 MY MEDICAL ID
         </button>
 
         {/* Type anything — full width */}

@@ -15,6 +15,7 @@ export type TrackEvent =
   | "voice_aid_phrase_tap"
   | "voice_aid_typed_speak"
   | "voice_aid_say_again"
+  | "voice_aid_911_statement"
   | "chat_message_sent"
   | "showdown_pick_made"
   | "showdown_pick_changed"
