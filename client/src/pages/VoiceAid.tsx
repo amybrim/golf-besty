@@ -13,12 +13,12 @@ const JAMIE_MEDICAL_ID = {
   doctor: "Dr. Feng — Mass Eye and Ear, Boston (Cancer / ENT)",
   hospital: "Addison Gilbert Hospital, Gloucester — or Mass Eye and Ear, Boston",
   contacts: [
-    { name: "Amy Brimicombe (Sister)", phone: "781-808-8061" },
-    { name: "Deb Linskey (Mom)", phone: "978-223-8538" },
+    { name: "Amy Brimicombe — Sister", phone: "781-808-8061" },
+    { name: "Deb Linskey — Mother", phone: "978-223-8538" },
   ],
 };
 
-const JAMIE_911_STATEMENT = `This is a medical emergency. My name is Jamie Linskey. I cannot speak — I have had a laryngectomy and tracheotomy. I need emergency assistance immediately. My address is 29A Uncus Road, Gloucester, Massachusetts, 01930. My emergency contacts are Amy Brimicombe at 7 8 1, 8 0 8, 8 0 6 1, and Deb Linskey at 9 7 8, 2 2 3, 8 5 3 8. My doctor is Doctor Feng at Mass Eye and Ear in Boston. I have no known allergies. Please send help now.`;
+const JAMIE_911_STATEMENT = `This is a medical emergency. My name is Jamie Linskey. I cannot speak — I have had a laryngectomy and tracheotomy. I need emergency assistance immediately. My address is 29A Uncus Road, Gloucester, Massachusetts, 01930. My emergency contacts are my sister Amy Brimicombe at 7 8 1, 8 0 8, 8 0 6 1, and my mother Deb Linskey at 9 7 8, 2 2 3, 8 5 3 8. My doctor is Doctor Feng at Mass Eye and Ear in Boston. I have no known allergies. Please send help now.`;
 
 // ── Situation categories with real-world AAC phrases ─────────────────────────
 
