@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Volume2, VolumeX, Plus, Trash2, Gauge, Zap, ChevronLeft } from "lucide-react";
+import { Volume2, VolumeX, Plus, Trash2, ChevronLeft } from "lucide-react";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { useTTS } from "@/hooks/useTTS";
 
 // ── Jamie's Medical ID ───────────────────────────────────────────────────────
 
@@ -202,23 +203,15 @@ export default function VoiceAid() {
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
   const { track } = useAnalytics(guestId);
 
+  const { speak: ttsSpeak, stop: ttsStop, speaking } = useTTS();
   const [view, setView] = useState<"home" | "type" | "category" | "medical-id">("home");
   const [speaking911, setSpeaking911] = useState(false);
   const [activeSituation, setActiveSituation] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
-  const [speaking, setSpeaking] = useState(false);
   const [customPhrases, setCustomPhrases] = useState<string[]>([]);
   const [newPhrase, setNewPhrase] = useState("");
   const [addingPhrase, setAddingPhrase] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string | undefined>(undefined);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [lastSpoken, setLastSpoken] = useState<string>("");
-  const [speechRate, setSpeechRate] = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem(SPEED_KEY) ?? "0.82"); } catch { return 0.82; }
-  });
-  const [loudMode, setLoudMode] = useState<boolean>(() => {
-    try { return localStorage.getItem(LOUD_KEY) === "true"; } catch { return false; }
-  });
   const [showSettings, setShowSettings] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -231,74 +224,21 @@ export default function VoiceAid() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const load = () => {
-      const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-      if (voices.length > 0) setAvailableVoices(voices);
-    };
-    load();
-    window.speechSynthesis.onvoiceschanged = load;
-    const t = setTimeout(load, 800);
-    return () => { clearTimeout(t); window.speechSynthesis.onvoiceschanged = null; };
-  }, []);
-
-  useEffect(() => { localStorage.setItem(SPEED_KEY, speechRate.toString()); }, [speechRate]);
-  useEffect(() => { localStorage.setItem(LOUD_KEY, loudMode.toString()); }, [loudMode]);
-
-  const buildUtterance = (text: string): SpeechSynthesisUtterance => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = speechRate;
-    utterance.pitch = loudMode ? 1.05 : 0.9;
-    utterance.volume = 1.0;
-    const setVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (!voices.length) return;
-      if (selectedVoice) {
-        const picked = voices.find((v) => v.name === selectedVoice);
-        if (picked) { utterance.voice = picked; return; }
-      }
-      const priority = ["Daniel", "Arthur", "Gordon", "Google UK English Male", "Google US English", "Microsoft Guy", "Microsoft David"];
-      const enVoices = voices.filter((v) => v.lang.startsWith("en"));
-      let chosen: SpeechSynthesisVoice | undefined;
-      for (const name of priority) {
-        chosen = enVoices.find((v) => v.name.includes(name));
-        if (chosen) break;
-      }
-      if (!chosen) chosen = enVoices.find((v) => !v.name.toLowerCase().includes("female")) ?? enVoices[0];
-      if (chosen) utterance.voice = chosen;
-    };
-    if (window.speechSynthesis.getVoices().length > 0) setVoice();
-    else window.speechSynthesis.onvoiceschanged = () => { setVoice(); window.speechSynthesis.onvoiceschanged = null; };
-    return utterance;
-  };
-
   const speak = (text: string, source?: string) => {
     const toSpeak = text.trim();
     if (!toSpeak) return;
-    setSpeaking(true);
     setLastSpoken(toSpeak);
     if (source) track("voice_aid_phrase_tap", { label: toSpeak.slice(0, 80), metadata: { source } });
-    window.speechSynthesis.cancel();
-    const utterance = buildUtterance(toSpeak);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+    ttsSpeak(toSpeak);
   };
 
-  const stopSpeaking = () => { window.speechSynthesis.cancel(); setSpeaking(false); setSpeaking911(false); };
+  const stopSpeaking = () => { ttsStop(); setSpeaking911(false); };
 
   const speak911 = () => {
     setSpeaking911(true);
-    setSpeaking(true);
     setLastSpoken("911 Emergency Statement");
     track("voice_aid_911_statement", { label: "911" });
-    window.speechSynthesis.cancel();
-    const utterance = buildUtterance(JAMIE_911_STATEMENT);
-    utterance.rate = 0.75; // Slow and clear for dispatcher
-    utterance.onend = () => { setSpeaking(false); setSpeaking911(false); };
-    utterance.onerror = () => { setSpeaking(false); setSpeaking911(false); };
-    window.speechSynthesis.speak(utterance);
+    ttsSpeak(JAMIE_911_STATEMENT, () => setSpeaking911(false));
   };
 
   const handleSavePhrase = () => {
@@ -316,7 +256,6 @@ export default function VoiceAid() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
-  const speedLabel = speechRate <= 0.65 ? "Slow" : speechRate <= 0.9 ? "Normal" : "Fast";
   const currentSituation = SITUATIONS.find((s) => s.id === activeSituation);
 
   // ── EMERGENCY shortcut — always visible ──────────────────────────────────
@@ -354,39 +293,13 @@ export default function VoiceAid() {
 
   // ── Settings panel ────────────────────────────────────────────────────────
   const SettingsPanel = () => (
-    <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Gauge size={14} className="text-muted-foreground" />
-        <span className="text-sm font-medium text-foreground">Speech Speed</span>
-        <span className="ml-auto text-sm font-mono text-brass">{speedLabel}</span>
+    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Volume2 size={14} className="text-brass" />
+        <span className="text-sm font-medium text-foreground">Voice: Adam (ElevenLabs AI)</span>
+        <span className="ml-auto text-xs text-muted-foreground">Powered by ElevenLabs</span>
       </div>
-      <input
-        type="range" min={0.5} max={1.3} step={0.05} value={speechRate}
-        onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-        className="w-full h-2 accent-brass cursor-pointer"
-      />
-      <div className="flex gap-3">
-        <button
-          onClick={() => setLoudMode((v) => !v)}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition-all ${
-            loudMode ? "bg-brass text-green-950 border-brass" : "border-border text-muted-foreground hover:border-brass/40"
-          }`}
-        >
-          <Zap size={15} /> {loudMode ? "LOUD MODE ON" : "Louder (noisy rooms)"}
-        </button>
-      </div>
-      {availableVoices.length > 0 && (
-        <select
-          value={selectedVoice ?? ""}
-          onChange={(e) => setSelectedVoice(e.target.value || undefined)}
-          className="w-full text-sm bg-muted text-foreground border border-border rounded-xl px-3 py-2.5"
-        >
-          <option value="">Default voice</option>
-          {availableVoices.map((v) => (
-            <option key={v.name} value={v.name}>{v.name.replace("Microsoft ", "").replace(" Online (Natural)", "")}</option>
-          ))}
-        </select>
-      )}
+      <p className="text-xs text-muted-foreground">A warm, natural American voice speaks your phrases. Voice upgrade coming soon.</p>
     </div>
   );
 
@@ -515,7 +428,7 @@ export default function VoiceAid() {
 
           {/* Settings */}
           <button onClick={() => setShowSettings((v) => !v)} className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
-            {showSettings ? "Hide settings" : "⚙ Speed & voice settings"}
+            {showSettings ? "Hide settings" : "⚙ Voice info"}
           </button>
           {showSettings && <SettingsPanel />}
 

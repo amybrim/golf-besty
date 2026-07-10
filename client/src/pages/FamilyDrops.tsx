@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTTS } from "@/hooks/useTTS";
 import { trpc } from "@/lib/trpc";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,19 +7,7 @@ import { Heart, Send, Volume2, CheckCheck, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-function speakText(text: string) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.88;
-  utterance.pitch = 1.0;
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(
-    (v) => v.lang.startsWith("en") && (v.name.includes("Samantha") || v.name.includes("Daniel") || v.name.includes("Alex") || v.name.includes("Google US English"))
-  );
-  if (preferred) utterance.voice = preferred;
-  window.speechSynthesis.speak(utterance);
-}
+
 
 function timeAgo(dateStr: string | Date): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -32,6 +21,7 @@ function timeAgo(dateStr: string | Date): string {
 export default function FamilyDrops() {
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
   const { track } = useAnalytics(guestId);
+  const { speak } = useTTS();
   const utils = trpc.useUtils();
   const { data: drops, isLoading } = trpc.family.all.useQuery();
 
@@ -172,15 +162,13 @@ export default function FamilyDrops() {
                     {!drop.isRead && (
                       <span className="w-2 h-2 rounded-full bg-brass animate-pulse" title="Unread" />
                     )}
-                    {"speechSynthesis" in window && (
-                      <button
-                        onClick={() => { track("family_drop_played", { label: drop.fromName }); speakText(`Message from ${drop.fromName}: ${drop.message}`); }}
+                    <button
+                        onClick={() => { track("family_drop_played", { label: drop.fromName }); speak(`Message from ${drop.fromName}: ${drop.message}`); }}
                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-brass transition-all"
                         title="Read aloud"
                       >
                         <Volume2 size={13} />
                       </button>
-                    )}
                     {!drop.isRead && (
                       <button
                         onClick={() => markRead.mutate({ id: drop.id })}

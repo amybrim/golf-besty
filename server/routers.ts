@@ -40,6 +40,7 @@ import {
   fetchPolymarketGolfMarkets,
 } from "./golf-data";
 import { fetchGolfNews, getTopStories } from "./golf-news";
+import { textToSpeech } from "./tts";
 
 // ── Golf Caddie system prompt ────────────────────────────────────────────────
 
@@ -816,6 +817,20 @@ const analyticsRouter = router({
   }),
 });
 
+// ── TTS Router ─────────────────────────────────────────────────────────────
+const ttsRouter = router({
+  speak: publicProcedure
+    .input(z.object({ text: z.string().min(1).max(2500) }))
+    .mutation(async ({ input }) => {
+      const audio = await textToSpeech(input.text);
+      if (!audio) {
+        throw new Error("TTS unavailable");
+      }
+      // Return as base64 so it can be played in the browser
+      return { audio: audio.toString("base64"), mimeType: "audio/mpeg" };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -833,6 +848,7 @@ export const appRouter = router({
   family: familyRouter,
   trivia: triviaRouter,
   analytics: analyticsRouter,
+  tts: ttsRouter,
 });
 
 export type AppRouter = typeof appRouter;

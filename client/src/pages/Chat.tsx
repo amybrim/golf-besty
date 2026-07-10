@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useGuestId } from "@/hooks/useGuestId";
 import { useAnalytics } from "@/hooks/useAnalytics";
-import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap, ChevronDown } from "lucide-react";
+import { Send, MessageSquare, Flag, Volume2, VolumeX, Mic, MicOff, Zap } from "lucide-react";
+import { useTTS } from "@/hooks/useTTS";
 import { motion, AnimatePresence } from "framer-motion";
 import { Streamdown } from "streamdown";
 
@@ -28,12 +29,9 @@ const QUICK_REACTIONS = [
   { label: "LPGA update", emoji: "🏌️‍♀️" },
 ];
 
-// Speak text using browser Web Speech API
-function speakText(text: string, onEnd?: () => void, voiceName?: string) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  // Strip markdown for cleaner speech
-  const clean = text
+// Strip markdown for cleaner speech
+function cleanForSpeech(text: string): string {
+  return text
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/\*(.*?)\*/g, "$1")
     .replace(/#{1,6}\s/g, "")
@@ -41,71 +39,24 @@ function speakText(text: string, onEnd?: () => void, voiceName?: string) {
     .replace(/\[(.*?)\]\(.*?\)/g, "$1")
     .replace(/\n+/g, ". ")
     .trim();
-  const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.rate = 0.88;
-  utterance.pitch = 0.92;
-  utterance.volume = 1.0;
-
-  const setVoice = () => {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return;
-    if (voiceName) {
-      // User-selected voice by name
-      const picked = voices.find((v) => v.name === voiceName);
-      if (picked) { utterance.voice = picked; return; }
-    }
-    // Default priority: warm natural male voices
-    const priority = [
-      "Daniel", "Arthur", "Gordon", "Fred", "Alex",
-      "Google UK English Male", "Google US English",
-      "Microsoft Guy", "Microsoft David",
-      "en-US-GuyNeural", "en-GB-RyanNeural",
-    ];
-    const enVoices = voices.filter((v) => v.lang.startsWith("en"));
-    let chosen: SpeechSynthesisVoice | undefined;
-    for (const name of priority) {
-      chosen = enVoices.find((v) => v.name.includes(name));
-      if (chosen) break;
-    }
-    if (!chosen) {
-      chosen = enVoices.find((v) => !v.name.toLowerCase().includes("female") && !v.name.includes("Samantha") && !v.name.includes("Karen") && !v.name.includes("Victoria")) ?? enVoices[0];
-    }
-    if (chosen) utterance.voice = chosen;
-  };
-
-  if (window.speechSynthesis.getVoices().length > 0) {
-    setVoice();
-  } else {
-    window.speechSynthesis.onvoiceschanged = () => { setVoice(); window.speechSynthesis.onvoiceschanged = null; };
-  }
-  if (onEnd) utterance.onend = onEnd;
-  window.speechSynthesis.speak(utterance);
 }
 
-function SpeakerButton({ text, autoPlay, voiceName }: { text: string; autoPlay: boolean; voiceName?: string }) {
-  const [speaking, setSpeaking] = useState(false);
+function SpeakerButton({ text, autoPlay }: { text: string; autoPlay: boolean }) {
+  const { speak, stop, speaking } = useTTS();
+  const clean = cleanForSpeech(text);
 
   useEffect(() => {
-    if (autoPlay && text) {
-      setSpeaking(true);
-      speakText(text, () => setSpeaking(false), voiceName);
+    if (autoPlay && clean) {
+      speak(clean);
     }
-    return () => {
-      window.speechSynthesis?.cancel();
-    };
-  }, [autoPlay, text, voiceName]);
+    return () => { stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
 
   const toggle = () => {
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(false);
-    } else {
-      setSpeaking(true);
-      speakText(text, () => setSpeaking(false), voiceName);
-    }
+    if (speaking) { stop(); }
+    else { speak(clean); }
   };
-
-  if (!("speechSynthesis" in window)) return null;
 
   return (
     <button
@@ -131,50 +82,8 @@ export default function Chat() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [latestAiIndex, setLatestAiIndex] = useState<number | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string | undefined>(undefined);
-  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
-
-  // Load available voices — retry needed for iOS/Safari
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const load = () => {
-      const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-      if (voices.length > 0) setAvailableVoices(voices);
-    };
-    load();
-    window.speechSynthesis.onvoiceschanged = load;
-    // iOS needs a slight delay before voices are available
-    const t1 = setTimeout(load, 300);
-    const t2 = setTimeout(load, 1000);
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, []);
-
-  // Human-sounding voice labels for display
-  const voiceOptions = useMemo(() => {
-    if (!availableVoices.length) return [];
-    // Preferred warm/natural voices — show all available if fewer than 3 curated found
-    const preferred = [
-      "Daniel", "Arthur", "Gordon", "Fred", "Alex", "Oliver",
-      "Google UK English Male", "Google US English",
-      "Microsoft Guy", "Microsoft David", "Microsoft Mark",
-      "en-US-GuyNeural", "en-GB-RyanNeural", "en-US-ChristopherNeural",
-    ];
-    const curated = preferred
-      .map((name) => availableVoices.find((v) => v.name.includes(name)))
-      .filter(Boolean) as SpeechSynthesisVoice[];
-    const rest = availableVoices.filter(
-      (v) => !curated.some((c) => c.name === v.name)
-    );
-    // If fewer than 3 curated voices found, show everything so Jamie always has choices
-    return curated.length >= 3 ? [...curated, ...rest] : availableVoices;
-  }, [availableVoices]);
 
   const { data: history } = trpc.golf.chatHistory.useQuery(
     { guestId },
@@ -278,83 +187,11 @@ export default function Chat() {
           <p className="text-muted-foreground text-xs font-mono">Jamie's Golf Bestie</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {/* Voice picker — always visible */}
-          {"speechSynthesis" in window && (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  // Force-load voices on first open (needed on Safari/iOS)
-                  if (availableVoices.length === 0) {
-                    const v = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-                    if (v.length) setAvailableVoices(v);
-                    else window.speechSynthesis.onvoiceschanged = () => {
-                      setAvailableVoices(window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en")));
-                      window.speechSynthesis.onvoiceschanged = null;
-                    };
-                  }
-                  setVoicePickerOpen((prev) => !prev);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border border-border text-muted-foreground hover:border-brass/30 hover:text-brass transition-all"
-                title="Choose Wally's voice"
-              >
-                <Volume2 size={11} />
-                <span className="hidden sm:inline">
-                  {selectedVoice
-                    ? (voiceOptions.find(v => v.name === selectedVoice)?.name.split(" ")[0] ?? "Voice")
-                    : "Voice"}
-                </span>
-                <ChevronDown size={10} />
-              </button>
-              <AnimatePresence>
-                {voicePickerOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                    className="absolute right-0 top-full mt-1.5 z-30 bg-card border border-border rounded-xl shadow-xl min-w-[220px] max-h-80 overflow-y-auto"
-                  >
-                    <div className="px-3 py-2 border-b border-border sticky top-0 bg-card">
-                      <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Wally's Voice</p>
-                      <p className="text-xs text-muted-foreground/60 mt-0.5">Tap any voice to preview it</p>
-                    </div>
-                    <button
-                      onClick={() => { setSelectedVoice(undefined); setVoicePickerOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
-                        !selectedVoice ? "text-brass font-medium" : "text-foreground"
-                      }`}
-                    >
-                      <span className="font-medium">Auto — Best available</span>
-                      <span className="block text-xs text-muted-foreground font-mono mt-0.5">Picks the warmest voice on your device</span>
-                    </button>
-                    {availableVoices.length === 0 ? (
-                      <div className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                        Loading voices...
-                      </div>
-                    ) : (
-                      voiceOptions.map((v) => (
-                        <button
-                          key={v.name}
-                          onClick={() => {
-                            setSelectedVoice(v.name);
-                            setVoicePickerOpen(false);
-                            speakText("Hey Jamie. Wally here.", undefined, v.name);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-muted/50 border-t border-border/40 ${
-                            selectedVoice === v.name ? "text-brass font-medium bg-brass/5" : "text-foreground"
-                          }`}
-                        >
-                          <span className="font-medium">{v.name.replace(" (Enhanced)", "").replace(" (Premium)", "")}</span>
-                          <span className="block text-xs text-muted-foreground font-mono mt-0.5">
-                            {v.lang}{v.localService ? " · On device" : " · Online"}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
+          {/* ElevenLabs voice badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border border-brass/30 text-brass/80">
+            <Volume2 size={11} />
+            <span className="hidden sm:inline">Adam · ElevenLabs</span>
+          </div>
           {/* Auto-play TTS toggle */}
           <button
             onClick={() => setAutoPlay((v) => !v)}
@@ -462,7 +299,6 @@ export default function Chat() {
                   <SpeakerButton
                     text={msg.content}
                     autoPlay={autoPlay && i === latestAiIndex}
-                    voiceName={selectedVoice}
                   />
                 )}
               </div>
