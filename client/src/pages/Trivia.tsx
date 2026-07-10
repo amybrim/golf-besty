@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTTS } from "@/hooks/useTTS";
 import { trpc } from "@/lib/trpc";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,25 +13,14 @@ type TriviaQuestion = {
   explanation: string;
 };
 
-function speakText(text: string) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const clean = text.replace(/\n+/g, " ").trim();
-  const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.rate = 0.92;
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(
-    (v) => v.lang.startsWith("en") && (v.name.includes("Daniel") || v.name.includes("Alex") || v.name.includes("Google US English") || v.name.includes("Samantha"))
-  );
-  if (preferred) utterance.voice = preferred;
-  window.speechSynthesis.speak(utterance);
-}
+
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export default function Trivia() {
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
   const { track } = useAnalytics(guestId);
+  const { speak } = useTTS();
   const [score, setScore] = useState({ correct: 0, total: 0 });
 
   useEffect(() => { track("page_view", { page: "/trivia" }); }, []);
@@ -43,7 +33,7 @@ export default function Trivia() {
   const reactMutation = trpc.trivia.react.useMutation({
     onSuccess: (data) => {
       setReaction(data.reaction);
-      speakText(data.reaction);
+      speak(data.reaction);
     },
   });
 
@@ -122,15 +112,13 @@ export default function Trivia() {
               <p className="font-serif text-lg font-semibold text-foreground leading-snug flex-1">
                 {question.question}
               </p>
-              {"speechSynthesis" in window && (
-                <button
-                  onClick={() => speakText(question.question)}
+              <button
+                  onClick={() => speak(question.question)}
                   className="p-1.5 rounded-lg text-muted-foreground hover:text-brass transition-colors flex-shrink-0"
                   title="Read aloud"
                 >
                   <Volume2 size={15} />
                 </button>
-              )}
             </div>
 
             <div className="brass-divider" />
@@ -201,14 +189,12 @@ export default function Trivia() {
                       </div>
                       <div className="flex-1 bg-card border border-brass/20 rounded-xl rounded-tl-sm px-4 py-3">
                         <p className="text-sm text-foreground leading-relaxed italic font-serif">{reaction}</p>
-                        {"speechSynthesis" in window && (
-                          <button
-                            onClick={() => speakText(reaction)}
+                        <button
+                            onClick={() => speak(reaction)}
                             className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-brass transition-colors"
                           >
                             <Volume2 size={11} /> Read aloud
                           </button>
-                        )}
                       </div>
                     </div>
                   ) : null}

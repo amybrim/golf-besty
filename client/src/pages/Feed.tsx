@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useTTS } from "@/hooks/useTTS";
 import { trpc } from "@/lib/trpc";
 import { Newspaper, ExternalLink, RefreshCw, Flame, Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
@@ -37,33 +38,16 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function SpeakButton({ text, storyId }: { text: string; storyId: string }) {
-  const [speaking, setSpeaking] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+function SpeakButton({ text }: { text: string }) {
+  const { speak, stop, speaking } = useTTS();
 
   const handleSpeak = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-
-      if (speaking) {
-        window.speechSynthesis.cancel();
-        setSpeaking(false);
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.95;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-      setSpeaking(true);
+      if (speaking) { stop(); } else { speak(text); }
     },
-    [speaking, text]
+    [speaking, text, speak, stop]
   );
 
   return (
@@ -188,7 +172,6 @@ export default function Feed() {
                     ))}
                     <div className="ml-auto flex items-center gap-2">
                       <SpeakButton
-                        storyId={item.id}
                         text={`${item.title}. ${item.summary ?? ""}`}
                       />
                       <a

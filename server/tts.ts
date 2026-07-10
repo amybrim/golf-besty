@@ -30,9 +30,9 @@ export async function textToSpeech(text: string): Promise<Buffer | null> {
         text: text.slice(0, 2500), // free plan safe limit
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.0,
+          stability: 0.35,        // lower = more expressive, natural variation
+          similarity_boost: 0.90, // higher = closer to Adam's true voice character
+          style: 0.25,            // adds warmth and deliberate pacing
           use_speaker_boost: true,
         },
       }),

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTTS } from "@/hooks/useTTS";
 import { trpc } from "@/lib/trpc";
 import { Trophy, Calendar, MapPin, ChevronDown, ChevronUp, Target, Zap, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,7 +31,7 @@ function StatusBadge({ status }: { status: string }) {
 function LeaderboardPanel({ eventId, tour }: { eventId?: string; tour?: string }) {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
-  const [narrating, setNarrating] = useState(false);
+  const { speak, stop, speaking: narrating } = useTTS();
   const { data: leaderboard, isLoading } = trpc.golf.leaderboard.useQuery(
     { eventId, tour },
     { refetchInterval: 60000 }
@@ -38,25 +39,13 @@ function LeaderboardPanel({ eventId, tour }: { eventId?: string; tour?: string }
 
   const narrateLeaderboard = useCallback(() => {
     if (!leaderboard || leaderboard.length === 0) return;
-    if (narrating) {
-      window.speechSynthesis.cancel();
-      setNarrating(false);
-      return;
-    }
+    if (narrating) { stop(); return; }
     const top5 = leaderboard.slice(0, 5);
     const text = `Here's the top 5. ` +
       top5.map((e, i) => `${i + 1}: ${e.playerName}, ${e.totalScore} total`).join('. ') +
       `. That's your live leaderboard.`;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.88;
-    utterance.pitch = 0.9;
-    utterance.volume = 1.0;
-    utterance.onend = () => setNarrating(false);
-    utterance.onerror = () => setNarrating(false);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    setNarrating(true);
-  }, [leaderboard, narrating]);
+    speak(text);
+  }, [leaderboard, narrating, speak, stop]);
 
   if (isLoading) {
     return (

@@ -1,23 +1,12 @@
 import { useState, useEffect } from "react";
+import { useTTS } from "@/hooks/useTTS";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { MessageSquare, Trophy, Target, ArrowRight, Newspaper, ExternalLink, Flame, Volume2, VolumeX, Coffee } from "lucide-react";
 import { motion } from "framer-motion";
 
-function speakText(text: string, onEnd?: () => void) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const clean = text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/#{1,6}\s/g, "").replace(/\n+/g, ". ").trim();
-  const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.rate = 0.92;
-  utterance.pitch = 1.0;
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Daniel") || v.name.includes("Alex") || v.name.includes("Google US English") || v.name.includes("Samantha")));
-  if (preferred) utterance.voice = preferred;
-  if (onEnd) utterance.onend = onEnd;
-  window.speechSynthesis.speak(utterance);
-}
+
 
 const TAG_COLORS: Record<string, string> = {
   Drama: "bg-red-500/10 text-red-600",
@@ -42,7 +31,7 @@ export default function Home() {
   const { data: tournaments } = trpc.golf.tournaments.useQuery();
   const { data: topStories } = trpc.golf.topStories.useQuery();
   const { data: briefing, isLoading: briefingLoading } = trpc.golf.morningBriefing.useQuery();
-  const [briefingSpeaking, setBriefingSpeaking] = useState(false);
+  const { speak, stop, speaking: briefingSpeaking } = useTTS();
   const guestId = typeof window !== "undefined" ? (localStorage.getItem("wally_guest_id") ?? undefined) : undefined;
   const { track } = useAnalytics(guestId);
 
@@ -120,15 +109,14 @@ export default function Home() {
             <Coffee size={15} className="text-brass" />
             <span className="font-serif font-semibold text-foreground text-sm">Wally's Morning Note</span>
           </div>
-          {"speechSynthesis" in window && briefing && (
+          {briefing && (
             <button
               onClick={() => {
                 if (briefingSpeaking) {
-                  window.speechSynthesis.cancel();
-                  setBriefingSpeaking(false);
+                  stop();
                 } else {
-                  setBriefingSpeaking(true);
-                  speakText(briefing, () => setBriefingSpeaking(false));
+                  const clean = briefing.replace(/\*\*(.*?)\*\*/g, "$1").replace(/#{1,6}\s/g, "").replace(/\n+/g, ". ").trim();
+                  speak(clean);
                 }
               }}
               title={briefingSpeaking ? "Stop" : "Read aloud"}
