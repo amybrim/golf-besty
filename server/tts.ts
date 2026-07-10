@@ -7,9 +7,9 @@
 
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
-// Adam — deep, warm, American male narrator (free plan)
+// Brian — Deep, Resonant and Comforting — middle-aged American male (free plan)
 // To upgrade: swap to gUABw7pXQjhjt0kNFBTF (Andrew) or Jamie's clone ID
-export const WALLY_VOICE_ID = "pNInz6obpgDQGcFmaJgB";
+export const WALLY_VOICE_ID = "nPczCjzI2devNBz1zQrb";
 
 export async function textToSpeech(text: string): Promise<Buffer | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY;

@@ -190,7 +190,7 @@ export default function Chat() {
           {/* ElevenLabs voice badge */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border border-brass/30 text-brass/80">
             <Volume2 size={11} />
-            <span className="hidden sm:inline">Adam · ElevenLabs</span>
+            <span className="hidden sm:inline">Brian · ElevenLabs</span>
           </div>
           {/* Auto-play TTS toggle */}
           <button
