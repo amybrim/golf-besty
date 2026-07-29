@@ -224,12 +224,16 @@ export default function VoiceAid() {
     } catch { /* ignore */ }
   }, []);
 
+  // Phonetic substitutions so ElevenLabs pronounces names correctly
+  const toPhonetic = (text: string) =>
+    text.replace(/Shaymis/gi, "Shay-miss");
+
   const speak = (text: string, source?: string) => {
     const toSpeak = text.trim();
     if (!toSpeak) return;
     setLastSpoken(toSpeak);
     if (source) track("voice_aid_phrase_tap", { label: toSpeak.slice(0, 80), metadata: { source } });
-    ttsSpeak(toSpeak);
+    ttsSpeak(toPhonetic(toSpeak));
   };
 
   const stopSpeaking = () => { ttsStop(); setSpeaking911(false); };
