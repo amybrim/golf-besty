@@ -28,11 +28,11 @@ export async function textToSpeech(text: string): Promise<Buffer | null> {
       },
       body: JSON.stringify({
         text: text.slice(0, 2500), // free plan safe limit
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_turbo_v2_5", // fastest model — ~50% lower latency than multilingual_v2
         voice_settings: {
-          stability: 0.35,        // lower = more expressive, natural variation
-          similarity_boost: 0.90, // higher = closer to Adam's true voice character
-          style: 0.25,            // adds warmth and deliberate pacing
+          stability: 0.50,        // balanced — natural but consistent
+          similarity_boost: 0.85, // close to Brian's true voice
+          style: 0.15,            // light warmth without slowing delivery
           use_speaker_boost: true,
         },
       }),
