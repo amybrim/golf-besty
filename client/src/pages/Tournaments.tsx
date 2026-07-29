@@ -1,9 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTTS } from "@/hooks/useTTS";
 import { trpc } from "@/lib/trpc";
-import { Trophy, Calendar, MapPin, ChevronDown, ChevronUp, Target, Zap, Volume2, VolumeX } from "lucide-react";
+import { Trophy, Calendar, MapPin, ChevronDown, ChevronUp, Target, Zap, Volume2, VolumeX, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
+
+// Stable guest ID so picks are consistent across page loads
+const GUEST_ID = (() => {
+  let id = localStorage.getItem("wally_guest_id");
+  if (!id) { id = `guest_${Date.now()}_${Math.random().toString(36).slice(2)}`; localStorage.setItem("wally_guest_id", id); }
+  return id;
+})();
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "in_progress") {
@@ -242,10 +249,12 @@ function TournamentCard({
   tournament,
   expandedId,
   setExpandedId,
+  existingPick,
 }: {
   tournament: Tournament;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
+  existingPick?: any;
 }) {
   const isExpanded = expandedId === tournament.id;
   const isLive = tournament.status === "in_progress";
@@ -316,9 +325,22 @@ function TournamentCard({
               <Link href="/showdown">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brass/10 hover:bg-brass/20 text-brass text-xs font-mono font-medium transition-colors cursor-pointer">
                   <Target size={11} />
-                  Pick winner
+                  {existingPick ? "✓ Picked" : "Make your call"}
                 </span>
               </Link>
+            )}
+            {existingPick && (
+              <div className="text-right">
+                <div className="text-xs font-mono text-muted-foreground">You: <span className="text-foreground">{existingPick.playerName}</span></div>
+                {existingPick.aiPickPlayerName && (
+                  <div className="text-xs font-mono text-muted-foreground">Wally: <span className="text-brass">{existingPick.aiPickPlayerName}</span></div>
+                )}
+                {existingPick.isResolved && (
+                  <div className="text-xs font-mono mt-1">
+                    {existingPick.isCorrect ? <span className="text-green-light">✓ You got it!</span> : existingPick.aiIsCorrect ? <span className="text-brass">Wally wins this one</span> : <span className="text-muted-foreground">Neither called it</span>}
+                  </div>
+                )}
+              </div>
             )}
             <button className="text-muted-foreground hover:text-foreground transition-colors mt-1">
               {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -353,7 +375,10 @@ export default function Tournaments() {
     { refetchInterval: 300000 }
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
+  const guestId = useMemo(() => GUEST_ID, []);
+  const { data: myPicks } = trpc.picks.myPicks.useQuery({ guestId });
+  const { data: seasonScore } = trpc.picks.seasonScore.useQuery({ guestId });
+  const picksByTournament = useMemo(() => new Map((myPicks ?? []).map((p: any) => [p.tournamentId, p])), [myPicks]);
   const active = tournaments?.filter((t) => t.status === "in_progress") ?? [];
   const upcoming = tournaments?.filter((t) => t.status === "upcoming") ?? [];
   const completed = tournaments?.filter((t) => t.status === "completed") ?? [];
@@ -382,6 +407,30 @@ export default function Tournaments() {
           {totalCount > 0 && ` · ${totalCount} events`}
         </p>
       </div>
+
+      {/* Season scoreboard */}
+      {seasonScore && seasonScore.total > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl"
+        >
+          <Swords size={18} className="text-brass flex-shrink-0" />
+          <div className="flex-1">
+            <div className="font-serif font-semibold text-foreground text-sm mb-1">Jamie vs Wally — Season Record</div>
+            <div className="flex items-center gap-4 font-mono text-sm">
+              <span className="text-foreground">Jamie <span className="text-green-light font-bold">{seasonScore.jamieWins}</span></span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-foreground">Wally <span className="text-brass font-bold">{seasonScore.wallyWins}</span></span>
+              {seasonScore.ties > 0 && <span className="text-muted-foreground text-xs">({seasonScore.ties} tied)</span>}
+              <span className="text-muted-foreground text-xs ml-auto">{seasonScore.total} resolved</span>
+            </div>
+          </div>
+          <Link href="/showdown">
+            <span className="text-brass text-xs font-mono cursor-pointer hover:underline">Full history →</span>
+          </Link>
+        </motion.div>
+      )}
 
       {/* Pick winner CTA banner */}
       {(active.length > 0 || upcoming.length > 0) && (
@@ -424,6 +473,7 @@ export default function Tournaments() {
                 tournament={t}
                 expandedId={expandedId}
                 setExpandedId={setExpandedId}
+                existingPick={picksByTournament.get(t.id)}
               />
             ))}
           </div>
@@ -445,6 +495,7 @@ export default function Tournaments() {
                 tournament={t}
                 expandedId={expandedId}
                 setExpandedId={setExpandedId}
+                existingPick={picksByTournament.get(t.id)}
               />
             ))}
           </div>
@@ -465,6 +516,7 @@ export default function Tournaments() {
                 tournament={t}
                 expandedId={expandedId}
                 setExpandedId={setExpandedId}
+                existingPick={picksByTournament.get(t.id)}
               />
             ))}
           </div>

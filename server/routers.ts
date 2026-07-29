@@ -531,6 +531,18 @@ const picksRouter = router({
       return getUserPicks(userId, input.guestId);
     }),
 
+  seasonScore: publicProcedure
+    .input(z.object({ guestId: z.string().min(1) }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user?.id ?? 0;
+      const userPicks = await getUserPicks(userId, input.guestId);
+      const resolved = userPicks.filter((p: any) => p.isResolved);
+      const jamieWins = resolved.filter((p: any) => p.isCorrect).length;
+      const wallyWins = resolved.filter((p: any) => p.aiIsCorrect).length;
+      const ties = resolved.filter((p: any) => p.isCorrect && p.aiIsCorrect).length;
+      return { total: resolved.length, jamieWins, wallyWins, ties };
+    }),
+
   bragBoard: publicProcedure.query(async () => {
     const allPicks = await getAllPicks();
     const scoreMap = new Map<number, { correct: number; total: number }>();
