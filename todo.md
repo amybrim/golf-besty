@@ -154,3 +154,12 @@
 - [ ] Showdown: show season-long bragging rights score (Jamie vs Wally wins/losses)
 - [ ] Home page: show next tournament countdown timer
 - [ ] Vitest: pick mechanic scoring logic test
+
+## Jamie’s Legacy & Separate Product Path
+- [ ] Preserve Jamie’s private Wally as a read-only legacy product; do not reuse his personal, medical, family, or voice data in any public product.
+- [ ] Create an inventory of Wally’s reusable, non-identifying product patterns and capabilities.
+- [ ] Research the communication-companion market, target populations, care pathways, and product gaps.
+- [ ] Define a distinct product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally.
+- [ ] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
+- [ ] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
+- [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
