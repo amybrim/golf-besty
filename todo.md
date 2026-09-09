@@ -165,3 +165,6 @@
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.
 - [x] Define a configurable Life Layer framework that safely tailors the companion to each communicator’s interests, routines, relationships, and sources of meaning without changing core communication access.
+- [ ] Define the master-platform brand and rules for each communicator to privately name their own companion.
+- [x] Draft an Amy-led repost and public recognition package that honors Jamie while establishing Amy as an AI builder and forward-looking creator.
+- [x] Draft and publish Amy’s Instagram repost of the Manus Wally story with a concise founder caption and protected privacy details.
