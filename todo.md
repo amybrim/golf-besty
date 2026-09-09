@@ -162,7 +162,7 @@
 - [ ] Define a distinct product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally.
 - [x] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
 - [x] Build the functional Elena companion demo with Speak Now, My Day, My World, My People, and Safety Card interactions.
-- [ ] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
+- [x] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.
 - [x] Define a configurable Life Layer framework that safely tailors the companion to each communicator’s interests, routines, relationships, and sources of meaning without changing core communication access.
