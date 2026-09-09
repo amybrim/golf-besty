@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -41,6 +42,29 @@ import {
 } from "./golf-data";
 import { fetchGolfNews, getTopStories } from "./golf-news";
 import { textToSpeech } from "./tts";
+import { createRequestLimiter } from "./companionRateLimit";
+
+const companionRequestLimiter = createRequestLimiter();
+
+function getRequestAddress(req: { headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } }) {
+  const forwarded = req.headers["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return forwardedValue?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+}
+
+function enforceCompanionRequestLimit(
+  req: { headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } },
+  scope: string,
+  maxRequests: number,
+  windowMs: number,
+) {
+  if (!companionRequestLimiter.allow(getRequestAddress(req), scope, maxRequests, windowMs)) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "This companion feature needs a short rest. Please try again in a few minutes.",
+    });
+  }
+}
 
 // ── Golf Caddie system prompt ────────────────────────────────────────────────
 
@@ -842,7 +866,10 @@ const ttsRouter = router({
       text: z.string().min(1).max(2500),
       profile: z.enum(["wally", "elena"]).default("wally"),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      if (input.profile === "elena") {
+        enforceCompanionRequestLimit(ctx.req, "elena-tts", 90, 10 * 60 * 1000);
+      }
       const audio = await textToSpeech(input.text, input.profile);
       if (!audio) {
         throw new Error("TTS unavailable");
@@ -861,7 +888,8 @@ const companionRouter = router({
       question: z.string().min(1).max(300),
       wishes: z.array(z.string().max(80)).max(8).default([]),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      enforceCompanionRequestLimit(ctx.req, "garden", 15, 10 * 60 * 1000);
       const response = await invokeLLM({
         messages: [
           {
