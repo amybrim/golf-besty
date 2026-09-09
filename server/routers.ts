@@ -838,9 +838,12 @@ const analyticsRouter = router({
 // ── TTS Router ─────────────────────────────────────────────────────────────
 const ttsRouter = router({
   speak: publicProcedure
-    .input(z.object({ text: z.string().min(1).max(2500) }))
+    .input(z.object({
+      text: z.string().min(1).max(2500),
+      profile: z.enum(["wally", "elena"]).default("wally"),
+    }))
     .mutation(async ({ input }) => {
-      const audio = await textToSpeech(input.text);
+      const audio = await textToSpeech(input.text, input.profile);
       if (!audio) {
         throw new Error("TTS unavailable");
       }

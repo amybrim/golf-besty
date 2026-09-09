@@ -162,6 +162,13 @@
 - [ ] Define a distinct product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally.
 - [x] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
 - [x] Build the functional Elena companion demo with Speak Now, My Day, My World, My People, and Safety Card interactions.
+- [ ] Add an interest-specific Garden Companion module with planting plans, wish-list plants, seasonal guidance, care reminders, and a private garden journal.
+- [ ] Add a permissioned Living Frame module for family-selected photos, captions, optional voice notes, and private memory playback.
+- [x] Upgrade the demo voice experience to support a selected quality voice with a device-native fallback rather than a browser-only placeholder.
+- [x] Integrate a warm ElevenLabs female voice into Elena’s Speak Now, Life Layer updates, family messages, and Safety Card read-aloud actions using a secure server-side request path.
+- [x] Add a clear chosen-voice disclosure and a browser/device fallback state to Elena’s demo so voice behavior remains understandable when audio service is unavailable.
+- [x] Force-test the Elena demo fallback path and confirm the visible device-voice indicator appears when the selected voice service cannot be reached.
+- [ ] Define additional configurable Life Layer modules that can adapt to a communicator’s interests while preserving a stable Voice Anchor.
 - [x] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.

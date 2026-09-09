@@ -1,25 +1,56 @@
 /**
- * ElevenLabs Text-to-Speech helper
- * Uses Adam voice (pNInz6obpgDQGcFmaJgB) — available on free plan
- * When Pro plan activates, swap VOICE_ID to gUABw7pXQjhjt0kNFBTF (Andrew)
- * or to Jamie's cloned voice ID once created.
+ * ElevenLabs Text-to-Speech helper.
+ *
+ * All API access remains server-side. Voice IDs are chosen from a small,
+ * intentional allowlist rather than supplied by a browser request.
  */
 
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
-// Brian — Deep, Resonant and Comforting — middle-aged American male (free plan)
-// To upgrade: swap to gUABw7pXQjhjt0kNFBTF (Andrew) or Jamie's clone ID
-export const WALLY_VOICE_ID = "nPczCjzI2devNBz1zQrb";
+export type VoiceProfile = "wally" | "elena";
 
-export async function textToSpeech(text: string): Promise<Buffer | null> {
+const VOICE_PROFILES: Record<VoiceProfile, {
+  id: string;
+  settings: {
+    stability: number;
+    similarity_boost: number;
+    style: number;
+    use_speaker_boost: boolean;
+  };
+}> = {
+  // Brian — deep, resonant and comforting — Wally's currently selected voice.
+  wally: {
+    id: "nPczCjzI2devNBz1zQrb",
+    settings: {
+      stability: 0.5,
+      similarity_boost: 0.85,
+      style: 0.15,
+      use_speaker_boost: true,
+    },
+  },
+  // Jessica — warm, bright American female voice for the fictional Elena demo.
+  elena: {
+    id: "cgSgspJ2msm6clMCkdW9",
+    settings: {
+      stability: 0.52,
+      similarity_boost: 0.8,
+      style: 0.12,
+      use_speaker_boost: true,
+    },
+  },
+};
+
+export async function textToSpeech(text: string, profile: VoiceProfile = "wally"): Promise<Buffer | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
     console.error("[TTS] ELEVENLABS_API_KEY not set");
     return null;
   }
 
+  const voice = VOICE_PROFILES[profile];
+
   try {
-    const res = await fetch(`${ELEVENLABS_API_URL}/${WALLY_VOICE_ID}`, {
+    const res = await fetch(`${ELEVENLABS_API_URL}/${voice.id}`, {
       method: "POST",
       headers: {
         "xi-api-key": apiKey,
@@ -29,12 +60,7 @@ export async function textToSpeech(text: string): Promise<Buffer | null> {
       body: JSON.stringify({
         text: text.slice(0, 2500), // free plan safe limit
         model_id: "eleven_turbo_v2_5", // fastest model — ~50% lower latency than multilingual_v2
-        voice_settings: {
-          stability: 0.50,        // balanced — natural but consistent
-          similarity_boost: 0.85, // close to Brian's true voice
-          style: 0.15,            // light warmth without slowing delivery
-          use_speaker_boost: true,
-        },
+        voice_settings: voice.settings,
       }),
     });
 
