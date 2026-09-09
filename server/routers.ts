@@ -852,6 +852,35 @@ const ttsRouter = router({
     }),
 });
 
+// ── Personal Voice Companion demo router ───────────────────────────────────
+// This is intentionally limited to fictional demo data. It provides gentle
+// planning language and does not present gardening, health, or safety claims.
+const companionRouter = router({
+  gardenGuidance: publicProcedure
+    .input(z.object({
+      question: z.string().min(1).max(300),
+      wishes: z.array(z.string().max(80)).max(8).default([]),
+    }))
+    .mutation(async ({ input }) => {
+      const response = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: `You are Elena's warm, practical Garden Companion inside a fictional privacy-safe product demo. Give a supportive garden-planning reply in 2 or 3 short sentences, no bullets. The fictional person has a sunny front step and a kitchen herb garden with basil, rosemary, and chives. Be transparent about uncertainty: do not claim exact local seasons, diagnose plant disease, recommend pesticides or chemicals, or give health/safety advice. Frame suggestions as simple questions, choices, or reminders that the person can save for later. Never call yourself an AI.`,
+          },
+          {
+            role: "user",
+            content: `Elena's current planting wishes are: ${input.wishes.length ? input.wishes.join("; ") : "none saved yet"}. Her question is: ${input.question}`,
+          },
+        ],
+      });
+      const content = response.choices[0]?.message?.content;
+      const guidance = typeof content === "string" ? content.trim() : "";
+      if (!guidance) throw new Error("Garden guidance unavailable");
+      return { guidance };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -870,6 +899,7 @@ export const appRouter = router({
   trivia: triviaRouter,
   analytics: analyticsRouter,
   tts: ttsRouter,
+  companion: companionRouter,
 });
 
 export type AppRouter = typeof appRouter;
