@@ -172,6 +172,7 @@
 - [x] Implement demo-quality seasonal garden guidance and a saved private garden-journal history.
 - [x] Add optional Living Frame voice-note upload/playback and a concrete local-only family permission model.
 - [x] Create a persistent module catalog that defines the configurable Life Layers beyond Garden Companion and Living Frame.
+- [x] Add a private My Stories module so the communicator can preserve and hear their own recipes, memories, instructions, and sayings.
 - [x] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.
