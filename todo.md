@@ -173,6 +173,10 @@
 - [x] Add optional Living Frame voice-note upload/playback and a concrete local-only family permission model.
 - [x] Create a persistent module catalog that defines the configurable Life Layers beyond Garden Companion and Living Frame.
 - [x] Add a private My Stories module so the communicator can preserve and hear their own recipes, memories, instructions, and sayings.
+- [x] Add a private My Places module for favorite places, context-specific phrases, and chosen plans without location tracking.
+- [x] Fix My Places phrase selection so tapping or listening always reads the selected contextual phrase.
+- [x] Add interaction coverage confirming the selected My Places phrase persists through rerendering and is the phrase read aloud.
+- [x] Add a private per-place plan feature so the communicator can save a chosen intention or planned action without location tracking.
 - [x] Scope request limits to Elena/public-demo traffic only, leaving Jamie’s private Wally voice usage unaffected.
 - [x] Add an integration-style test confirming the Elena demo quota returns TOO_MANY_REQUESTS while Wally voice requests remain outside the demo guard.
 - [x] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
