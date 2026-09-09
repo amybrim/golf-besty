@@ -160,7 +160,8 @@
 - [ ] Create an inventory of Wally’s reusable, non-identifying product patterns and capabilities.
 - [ ] Research the communication-companion market, target populations, care pathways, and product gaps.
 - [ ] Define a distinct product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally.
-- [ ] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
+- [x] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
+- [x] Build the functional Elena companion demo with Speak Now, My Day, My World, My People, and Safety Card interactions.
 - [ ] Prepare a pilot narrative, partner outreach materials, and a phased launch plan.
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.
