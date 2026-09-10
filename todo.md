@@ -186,3 +186,4 @@
 - [ ] Define the master-platform brand and rules for each communicator to privately name their own companion.
 - [x] Draft an Amy-led repost and public recognition package that honors Jamie while establishing Amy as an AI builder and forward-looking creator.
 - [x] Draft and publish Amy’s Instagram repost of the Manus Wally story with a concise founder caption and protected privacy details.
+- [x] Draft a personal outreach note to Josh, author of “AI for Good,” connecting Wally’s story to his work.
