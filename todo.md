@@ -159,8 +159,8 @@
 - [ ] Preserve Jamie’s private Wally as a read-only legacy product; do not reuse his personal, medical, family, or voice data in any public product.
 - [x] Create an inventory of Wally’s reusable, non-identifying product patterns and capabilities.
 - [x] Research the communication-companion market, target populations, care pathways, and product gaps.
-- [x] Define a distinct working product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally: Elena Rawley Creations. Trademark, domain, and entity clearance remain required before broad public use.
-- [x] Re-review portfolio, pilot, and outreach materials to confirm Elena Rawley Creations is the only working company identity and the approved privacy language remains consistent.
+- [x] Define a distinct Personal Voice Companion category, privacy model, and initial pilot audience separate from Jamie and Wally; defer the future company name until Amy chooses it.
+- [x] Re-review portfolio, pilot, and outreach materials to confirm companion names remain separate from any future company identity and the approved privacy language remains consistent.
 - [x] Add and run a durable brand-and-sharing consistency audit across the core founder materials before closing the working-identity review.
 - [x] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
 - [x] Build the functional Elena companion demo with Speak Now, My Day, My World, My People, and Safety Card interactions.
@@ -189,7 +189,7 @@
 - [x] Draft an Amy-led repost and public recognition package that honors Jamie while establishing Amy as an AI builder and forward-looking creator.
 - [x] Draft and publish Amy’s Instagram repost of the Manus Wally story with a concise founder caption and protected privacy details.
 - [x] Draft a personal outreach note to Josh, author of “AI for Good,” connecting Wally’s story to his work.
-- [x] Define Elena Rawley Creations’ ideal first-client profile, ethical eligibility boundaries, and first-pilot offer.
+- [x] Define the Personal Voice Companion platform’s ideal first-client profile, ethical eligibility boundaries, and first-pilot offer.
 - [x] Map the high-trust referral network: SLPs, laryngectomy and head-and-neck cancer support groups, rehabilitation clinicians, private care navigators, patient advocates, and relevant community partners.
 - [x] Create a relationship-first outreach sequence, introduction scripts, demo materials, and a simple lead/referral tracker.
 - [x] Define consent-led pilot discovery, intake, data-minimization, and follow-up practices before accepting a first family.
@@ -216,5 +216,10 @@
 - [x] Replace Elena’s static morning card with a real generated daily message that is saved and can be read aloud.
 - [x] Replace Elena’s preview-only Living Frame photo flow with a persistent private upload and retrieval path, including clear local-demo privacy boundaries.
 - [x] Add a companion-presence layer to Elena: daily check-in, last-saved memory/photo acknowledgement, and warm return moments without manipulating engagement.
-- [x] Replace the remaining legacy “Voice & Life Studio” label inside Elena’s About panel with Elena Rawley Creations.
+- [x] Replace the remaining legacy “Voice & Life Studio” label inside Elena’s About panel with the Personal Voice Companion category.
 - [x] Update the private three-companion portfolio record with Elena’s live daily rhythm, device-private Living Frame persistence, and gentle companion-presence model.
+- [x] Establish and document Elena’s direct review link as the only visual proof used for Elena work; do not present Wally checkpoint thumbnails as Elena progress.
+- [x] Define the common Personal Voice Companion platform contract shared by Wally, Stan, and Elena while keeping companion data, voice, family content, and review environments isolated.
+- [x] Create a standalone Elena project plan that migrates only fictional, safe components from the current prototype and gives Elena independent previews and checkpoints.
+- [ ] Create Elena as a new dedicated project/chat, migrate only fictional safe components, and verify that her own checkpoint previews show Elena rather than Wally.
+- [x] Remove the invented company name from Elena’s demo, platform architecture, migration plan, and founder materials; retain only the companion name Elena and the generic Personal Voice Companion category.
