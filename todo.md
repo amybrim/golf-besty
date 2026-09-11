@@ -217,3 +217,4 @@
 - [x] Replace Elena’s preview-only Living Frame photo flow with a persistent private upload and retrieval path, including clear local-demo privacy boundaries.
 - [x] Add a companion-presence layer to Elena: daily check-in, last-saved memory/photo acknowledgement, and warm return moments without manipulating engagement.
 - [x] Replace the remaining legacy “Voice & Life Studio” label inside Elena’s About panel with Elena Rawley Creations.
+- [x] Update the private three-companion portfolio record with Elena’s live daily rhythm, device-private Living Frame persistence, and gentle companion-presence model.
