@@ -212,3 +212,4 @@
 - [x] Visually verify the lavender Elena redesign at desktop and mobile widths without changing any Wally or Stan content.
 - [x] Create a privacy-safe three-companion visual map that shows the common Voice Anchor and distinct Wally, Stan, and Elena Life Layers without using protected personal details.
 - [x] Document Elena’s finished portfolio-ready walkthrough and approved fictional-demo sharing boundary.
+- [x] Restore and verify a direct private Elena preview link, then confirm that it opens Elena rather than Wally.
