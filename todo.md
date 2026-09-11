@@ -191,3 +191,4 @@
 - [x] Map the high-trust referral network: SLPs, laryngectomy and head-and-neck cancer support groups, rehabilitation clinicians, private care navigators, patient advocates, and relevant community partners.
 - [x] Create a relationship-first outreach sequence, introduction scripts, demo materials, and a simple lead/referral tracker.
 - [x] Define consent-led pilot discovery, intake, data-minimization, and follow-up practices before accepting a first family.
+- [x] Create a prioritized first-ten relationship list with a tailored learning objective and non-promotional first message for each contact route.
