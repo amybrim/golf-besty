@@ -205,3 +205,6 @@
 - [x] Define the three-companion portfolio—Wally, Stan, and Elena—including each companion’s purpose, Life Layer, reusable product pattern, and approved sharing boundary.
 - [ ] Complete Elena’s first portfolio-ready demo experience before initiating broader articles, media pitches, or external partner outreach.
 - [ ] Hold all unsent first-wave outreach and publication drafts until Amy approves the completed three-companion portfolio narrative.
+- [x] Rebuild Elena’s visual system around lavender, plum, and soft-cream tokens while keeping high-contrast, accessible text and controls.
+- [x] Restructure Elena’s navigation and key interaction views to follow the familiar Wally/Stan companion pattern: stable home, large category paths, clear back navigation, and one-tap Speak Now access.
+- [x] Visually verify the lavender Elena redesign at desktop and mobile widths without changing any Wally or Stan content.
