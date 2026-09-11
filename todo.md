@@ -201,3 +201,4 @@
 - [x] Re-review the twenty-target package and confirm every target has a true first message rather than only a pitch angle or drafting outline.
 - [x] Verify current contact routes and prepare the approved first-wave six messages as send-ready drafts: Boston Cured Cancer Club, Lary’s Speakeasy, Spaulding, Aphasia Access, The Mighty, and GOLF.com.
 - [ ] Review the six send-ready drafts with Amy and obtain separate confirmation before any external message or submission.
+- [x] Rewrite the GOLF.com pitch in Amy’s plainspoken, non-medical voice before requesting sending approval.
