@@ -159,7 +159,9 @@
 - [ ] Preserve Jamie’s private Wally as a read-only legacy product; do not reuse his personal, medical, family, or voice data in any public product.
 - [x] Create an inventory of Wally’s reusable, non-identifying product patterns and capabilities.
 - [x] Research the communication-companion market, target populations, care pathways, and product gaps.
-- [ ] Define a distinct product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally.
+- [x] Define a distinct working product name, positioning, privacy model, and initial pilot audience separate from Jamie and Wally: Elena Rawley Creations. Trademark, domain, and entity clearance remain required before broad public use.
+- [x] Re-review portfolio, pilot, and outreach materials to confirm Elena Rawley Creations is the only working company identity and the approved privacy language remains consistent.
+- [x] Add and run a durable brand-and-sharing consistency audit across the core founder materials before closing the working-identity review.
 - [x] Build a fictionalized, privacy-safe demo product with synthetic profiles and no Jamie-specific information.
 - [x] Build the functional Elena companion demo with Speak Now, My Day, My World, My People, and Safety Card interactions.
 - [x] Add an interest-specific Garden Companion module with planting plans, wish-list plants, seasonal guidance, care reminders, and a private garden journal.
@@ -183,7 +185,7 @@
 - [x] Synthesize Amy’s commercial opportunity brief and collaborator feedback into CTO-grade product decisions, risks, and prototype requirements.
 - [x] Design a high-touch private-market concierge offer, operating model, referral path, and client-safety guardrails.
 - [x] Define a configurable Life Layer framework that safely tailors the companion to each communicator’s interests, routines, relationships, and sources of meaning without changing core communication access.
-- [ ] Define the master-platform brand and rules for each communicator to privately name their own companion.
+- [x] Define the master-platform brand and rules for each communicator to privately name their own companion.
 - [x] Draft an Amy-led repost and public recognition package that honors Jamie while establishing Amy as an AI builder and forward-looking creator.
 - [x] Draft and publish Amy’s Instagram repost of the Manus Wally story with a concise founder caption and protected privacy details.
 - [x] Draft a personal outreach note to Josh, author of “AI for Good,” connecting Wally’s story to his work.
