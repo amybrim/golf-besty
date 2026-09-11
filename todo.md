@@ -187,3 +187,7 @@
 - [x] Draft an Amy-led repost and public recognition package that honors Jamie while establishing Amy as an AI builder and forward-looking creator.
 - [x] Draft and publish Amy’s Instagram repost of the Manus Wally story with a concise founder caption and protected privacy details.
 - [x] Draft a personal outreach note to Josh, author of “AI for Good,” connecting Wally’s story to his work.
+- [x] Define Elena Rawley Creations’ ideal first-client profile, ethical eligibility boundaries, and first-pilot offer.
+- [x] Map the high-trust referral network: SLPs, laryngectomy and head-and-neck cancer support groups, rehabilitation clinicians, private care navigators, patient advocates, and relevant community partners.
+- [x] Create a relationship-first outreach sequence, introduction scripts, demo materials, and a simple lead/referral tracker.
+- [x] Define consent-led pilot discovery, intake, data-minimization, and follow-up practices before accepting a first family.
