@@ -199,3 +199,5 @@
 - [x] Add a compact outreach tracker linking all 20 targets to the exact first-message draft, owner, status, and next step.
 - [x] Draft a concrete personal first-message template for each editorial target with human-authorship or AI-disclosure rules, including STAT News, The ASHA Leader, MIT Technology Review, and Fast Company.
 - [x] Re-review the twenty-target package and confirm every target has a true first message rather than only a pitch angle or drafting outline.
+- [x] Verify current contact routes and prepare the approved first-wave six messages as send-ready drafts: Boston Cured Cancer Club, Lary’s Speakeasy, Spaulding, Aphasia Access, The Mighty, and GOLF.com.
+- [ ] Review the six send-ready drafts with Amy and obtain separate confirmation before any external message or submission.
