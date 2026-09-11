@@ -43,6 +43,11 @@ import {
 import { fetchGolfNews, getTopStories } from "./golf-news";
 import { textToSpeech } from "./tts";
 import { createRequestLimiter } from "./companionRateLimit";
+import {
+  buildElenaDailyMessageSystemPrompt,
+  buildElenaDailyMessageUserPrompt,
+  getElenaDailyMessageFallback,
+} from "./elenaDailyMessage";
 
 const companionRequestLimiter = createRequestLimiter();
 
@@ -883,6 +888,30 @@ const ttsRouter = router({
 // This is intentionally limited to fictional demo data. It provides gentle
 // planning language and does not present gardening, health, or safety claims.
 const companionRouter = router({
+  dailyMessage: publicProcedure
+    .input(z.object({
+      dateLabel: z.string().min(3).max(80),
+      gardenWishes: z.array(z.string().max(80)).max(8).default([]),
+      hasSavedFramePhoto: z.boolean().default(false),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      enforceCompanionRequestLimit(ctx.req, "elena-daily-message", 3, 10 * 60 * 1000);
+      const fallback = getElenaDailyMessageFallback(input);
+      try {
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: buildElenaDailyMessageSystemPrompt() },
+            { role: "user", content: buildElenaDailyMessageUserPrompt(input) },
+          ],
+        });
+        const raw = response.choices[0]?.message?.content;
+        const message = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
+        if (!message || message.length > 520) return { message: fallback, source: "fallback" as const };
+        return { message, source: "generated" as const };
+      } catch {
+        return { message: fallback, source: "fallback" as const };
+      }
+    }),
   gardenGuidance: publicProcedure
     .input(z.object({
       question: z.string().min(1).max(300),

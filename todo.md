@@ -213,3 +213,6 @@
 - [x] Create a privacy-safe three-companion visual map that shows the common Voice Anchor and distinct Wally, Stan, and Elena Life Layers without using protected personal details.
 - [x] Document Elena’s finished portfolio-ready walkthrough and approved fictional-demo sharing boundary.
 - [x] Restore and verify a direct private Elena preview link, then confirm that it opens Elena rather than Wally.
+- [x] Replace Elena’s static morning card with a real generated daily message that is saved and can be read aloud.
+- [x] Replace Elena’s preview-only Living Frame photo flow with a persistent private upload and retrieval path, including clear local-demo privacy boundaries.
+- [x] Add a companion-presence layer to Elena: daily check-in, last-saved memory/photo acknowledgement, and warm return moments without manipulating engagement.
