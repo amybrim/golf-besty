@@ -216,3 +216,4 @@
 - [x] Replace Elena’s static morning card with a real generated daily message that is saved and can be read aloud.
 - [x] Replace Elena’s preview-only Living Frame photo flow with a persistent private upload and retrieval path, including clear local-demo privacy boundaries.
 - [x] Add a companion-presence layer to Elena: daily check-in, last-saved memory/photo acknowledgement, and warm return moments without manipulating engagement.
+- [x] Replace the remaining legacy “Voice & Life Studio” label inside Elena’s About panel with Elena Rawley Creations.
