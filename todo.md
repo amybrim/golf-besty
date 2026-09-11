@@ -202,3 +202,6 @@
 - [x] Verify current contact routes and prepare the approved first-wave six messages as send-ready drafts: Boston Cured Cancer Club, Lary’s Speakeasy, Spaulding, Aphasia Access, The Mighty, and GOLF.com.
 - [ ] Review the six send-ready drafts with Amy and obtain separate confirmation before any external message or submission.
 - [x] Rewrite the GOLF.com pitch in Amy’s plainspoken, non-medical voice before requesting sending approval.
+- [x] Define the three-companion portfolio—Wally, Stan, and Elena—including each companion’s purpose, Life Layer, reusable product pattern, and approved sharing boundary.
+- [ ] Complete Elena’s first portfolio-ready demo experience before initiating broader articles, media pitches, or external partner outreach.
+- [ ] Hold all unsent first-wave outreach and publication drafts until Amy approves the completed three-companion portfolio narrative.
