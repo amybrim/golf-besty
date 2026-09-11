@@ -192,3 +192,10 @@
 - [x] Create a relationship-first outreach sequence, introduction scripts, demo materials, and a simple lead/referral tracker.
 - [x] Define consent-led pilot discovery, intake, data-minimization, and follow-up practices before accepting a first family.
 - [x] Create a prioritized first-ten relationship list with a tailored learning objective and non-promotional first message for each contact route.
+- [x] Research and prioritize 20 total outreach targets: 10 trusted referral/community relationships and 10 publication or thought-leadership outlets.
+- [x] Prepare tailored, permission-first outreach angles and first-message drafts for each target without submitting or contacting anyone.
+- [x] Identify appropriate editorial submission routes, pitch requirements, and story angles for publications likely to cover Wally’s founder story or the Personal Voice Companion category.
+- [x] Draft a distinct permission-first first outreach message for each of the 20 researched targets, tailored to its role, official route, and editorial or ethical limits.
+- [x] Add a compact outreach tracker linking all 20 targets to the exact first-message draft, owner, status, and next step.
+- [x] Draft a concrete personal first-message template for each editorial target with human-authorship or AI-disclosure rules, including STAT News, The ASHA Leader, MIT Technology Review, and Fast Company.
+- [x] Re-review the twenty-target package and confirm every target has a true first message rather than only a pitch angle or drafting outline.
